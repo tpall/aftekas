@@ -1,0 +1,4 @@
+sample,fastq_1,fastq_2
+EV25,data/EV25_L1_1.fq.gz,data/EV25_L1_2.fq.gz
+EV25,data/EV25_L3_1.fq.gz,data/EV25_L3_2.fq.gz
+EV53,data/EV53_L1_1.fq.gz,data/EV53_L1_2.fq.gz

@@ -9,6 +9,8 @@ include { PREPROCESS } from './subworkflows/preprocess.nf'
 include { MULTIQC } from './modules/nf-core/multiqc'
 include { CAT_FASTQ } from './modules/nf-core/cat/fastq/main' 
 include { ASSEMBLY } from './subworkflows/assembly.nf'
+include { PRODIGAL } from './modules/nf-core/prodigal/main' 
+include { BINNING } from './subworkflows/binning.nf'
 
 // Defaulting workflow
 workflow {
@@ -67,8 +69,20 @@ workflow {
     )
     ch_versions = ch_versions.mix(ASSEMBLY.out.versions)
     ch_multiqc = ch_multiqc.mix(ASSEMBLY.out.multiqc)
-    ch_contigs = ASSEMBLY.out.contigs
-    ch_covstats = ASSEMBLY.out.covstats
+    ch_assemblies = ASSEMBLY.out.assemblies
+    ch_bambais = ASSEMBLY.out.bambais
+    ch_assemblies
+        .map { meta, contigs, _bam -> [ meta, contigs ] }
+        .set { ch_contigs }
+
+    // Predict genes with Prodigal
+    PRODIGAL(ch_contigs, "gff")
+    // ch_prodigal_faa = PRODIGAL.out.amino_acid_fasta
+    ch_versions = ch_versions.mix(PRODIGAL.out.versions)
+
+    // // Binning of contigs into MAGs
+    BINNING(ch_assemblies, ch_bambais)
+    ch_versions = ch_versions.mix(BINNING.out.versions)
 
     // Generate MultiQC report
 
@@ -77,7 +91,7 @@ workflow {
     publish:
     trimmed_reads = ch_trimmed_reads
     contigs = ch_contigs
-    covstats = ch_covstats
+    covstats = ASSEMBLY.out.covstats
     // multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
     

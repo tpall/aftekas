@@ -2,6 +2,7 @@
 include { MEGAHIT } from '../modules/nf-core/megahit/main' 
 include { QUAST as METAQUAST_ASSEMBLY } from '../modules/local/metaquast/assembly/main'  
 include { BBMAP_ALIGN as ALIGN_MEGAHIT } from '../modules/local/bbmap/align/main'
+include { SAMTOOLS_SORT } from '../modules/nf-core/samtools/sort/main'
 include { BBMAP_PILEUP as PILEUP_MEGAHIT } from '../modules/nf-core/bbmap/pileup/main'
 
 workflow ASSEMBLY {
@@ -48,17 +49,32 @@ workflow ASSEMBLY {
     .set { ch_bbmap_input }
 
     ALIGN_MEGAHIT (ch_bbmap_input)
+    ch_bams = ALIGN_MEGAHIT.out.bam
     ch_versions = ch_versions.mix(ALIGN_MEGAHIT.out.versions)
     ch_multiqc = ch_multiqc.mix(ALIGN_MEGAHIT.out.log)
-    
-    PILEUP_MEGAHIT (ALIGN_MEGAHIT.out.bam)
+
+    SAMTOOLS_SORT (ch_bams, tuple([:], []), 'bai')
+    ch_sorted_bams = SAMTOOLS_SORT.out.bam
+    ch_sorted_bambais = SAMTOOLS_SORT.out.bai
+    ch_versions = ch_versions.mix(SAMTOOLS_SORT.out.versions)
+
+    PILEUP_MEGAHIT (ch_sorted_bams)
     ch_covstats = PILEUP_MEGAHIT.out.covstats
     ch_versions = ch_versions.mix(PILEUP_MEGAHIT.out.versions)
     ch_multiqc = ch_multiqc.mix(PILEUP_MEGAHIT.out.hist)
 
+    ch_bbmap_contigs
+    .combine(
+        ch_sorted_bams
+        .map { meta, bam -> [ meta.id, meta, bam ] }
+        , by: 0)
+    .map { _id, _meta, contigs, _meta2, bam -> [ _meta, contigs, bam ] }
+    .set { ch_assembies }
+
     emit:
-    contigs = ch_contigs
+    assemblies = ch_assembies
     covstats = ch_covstats
+    bambais = ch_sorted_bambais
     versions = ch_versions
     multiqc = ch_multiqc
 }

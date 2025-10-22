@@ -4,6 +4,7 @@ include { QUAST as METAQUAST_ASSEMBLY } from '../modules/local/metaquast/assembl
 include { BBMAP_ALIGN as ALIGN_MEGAHIT } from '../modules/local/bbmap/align/main'
 include { SAMTOOLS_SORT } from '../modules/nf-core/samtools/sort/main'
 include { BBMAP_PILEUP as PILEUP_MEGAHIT } from '../modules/nf-core/bbmap/pileup/main'
+include { FIX_FASTA_HEADERS } from '../modules/local/bbmap/reformat/main'
 
 workflow ASSEMBLY {
     take:
@@ -31,6 +32,10 @@ workflow ASSEMBLY {
         return [ fmeta, contigs ]
     }
     .set { ch_contigs }
+
+    // Fix contig headers by keeping only contig id
+    FIX_FASTA_HEADERS(ch_contigs)
+    ch_contigs = FIX_FASTA_HEADERS.out.fixed
 
     // Assess assembly quality with QUAST
     METAQUAST_ASSEMBLY(ch_contigs)

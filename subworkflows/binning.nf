@@ -8,6 +8,7 @@ include { CONCOCT_CUTUPFASTA as CUTUPFASTA } from '../modules/nf-core/concoct/cu
 include { CONCOCT_EXTRACTFASTABINS as EXTRACTFASTABINS } from '../modules/nf-core/concoct/extractfastabins/main' 
 include { CONCOCT_MERGECUTUPCLUSTERING as MERGECUTUPCLUSTERING } from '../modules/nf-core/concoct/mergecutupclustering/main'
 include { GUNZIP } from '../modules/nf-core/gunzip/main'
+include { SAMTOOLS_BEDCOV } from '../modules/nf-core/samtools/bedcov/main'
 
 workflow BINNING {
 
@@ -40,9 +41,9 @@ workflow BINNING {
     CONVERT_DEPTHS(ch_metabat2_input)
     ch_versions = ch_versions.mix(CONVERT_DEPTHS.out.versions)
     ch_maxbin2_input = CONVERT_DEPTHS.out.output
-    // MAXBIN2(ch_maxbin2_input)
+    MAXBIN2(ch_maxbin2_input)
     // ch_maxbin2_binned = MAXBIN2.out.binned_fastas
-    // ch_versions = ch_versions.mix(MAXBIN2.out.versions)
+    ch_versions = ch_versions.mix(MAXBIN2.out.versions)
 
     // CONCOCT binning
     GUNZIP(
@@ -50,23 +51,35 @@ workflow BINNING {
         .map { meta, contigs, _bam -> [ meta, contigs ] }
     )
     ch_versions = ch_versions.mix(GUNZIP.out.versions)
-    assembly_gunzipped = GUNZIP.out.gunzip
-    CUTUPFASTA( assembly_gunzipped, true )
+    contigs_gunzipped = GUNZIP.out.gunzip
+
+    contigs_gunzipped
+    .map { meta, contigs -> [ meta.id, meta, contigs ] }
+    .combine(assembly.map { meta, _contigs, bam -> [ meta.id, meta, bam ] }, by: 0)
+    .map { _id, meta, contigs, _meta2, bam -> [ meta, contigs, bam ] }
+    .set { assembly_gunzipped }
+
+    CUTUPFASTA( 
+        assembly_gunzipped
+        .map { meta, contigs, _bam -> [ meta, contigs ] }
+        , true )
     ch_versions = ch_versions.mix(CUTUPFASTA.out.versions)
     ch_cutup_bed = CUTUPFASTA.out.bed
     ch_cutup_bed.map { 
         meta, bed -> [ meta.id, meta, bed ] }
-        .combine(assembly.map { meta, _contigs, bam -> [ meta.id, meta, bam ] }, by: 0)
+        .combine(assembly_gunzipped.map { meta, _contigs, bam -> [ meta.id, meta, bam ] }, by: 0)
         .map { _id, meta, bed, _meta2, bam -> [ _id, meta, bed, bam ] }
         .combine(bambais.map { meta, bai -> [ meta.id, meta, bai ] }, by: 0)
         .map { _id, meta, bed, bam, _meta3, bai -> [ meta, bed, bam, bai ] }
         .set { ch_coveragetable_input }
+    
     COVERAGETABLE(ch_coveragetable_input)
     ch_versions = ch_versions.mix(COVERAGETABLE.out.versions)
     ch_concoct_coverage = COVERAGETABLE.out.tsv
+    
     ch_concoct_coverage
     .map { meta, coverage -> [ meta.id, meta, coverage ] }
-    .combine(assembly.map { meta, contigs, _bam -> [ meta.id, meta, contigs ] }, by: 0)
+    .combine(assembly_gunzipped.map { meta, contigs, _bam -> [ meta.id, meta, contigs ] }, by: 0)
     .map { _id, meta, coverage, _meta2, contigs -> [ meta, coverage, contigs ] }
     .set { ch_concoct_input }    
     CONCOCT(ch_concoct_input)

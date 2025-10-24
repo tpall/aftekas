@@ -31,10 +31,10 @@ workflow ASSEMBLY {
         fmeta.assembler = "MEGAHIT"
         return [ fmeta, contigs ]
     }
-    .set { ch_contigs }
+    .set { ch_contigs_megahit }
 
     // Fix contig headers by keeping only contig id
-    FIX_FASTA_HEADERS(ch_contigs)
+    FIX_FASTA_HEADERS(ch_contigs_megahit)
     ch_contigs = FIX_FASTA_HEADERS.out.fixed
 
     // Assess assembly quality with QUAST

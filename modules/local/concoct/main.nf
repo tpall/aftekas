@@ -20,20 +20,13 @@ process CONCOCT {
     script:
     def args = task.ext.args ?: ''
     prefix = task.ext.prefix ?: "${meta.id}"
-
-    // if  ( contigs.extension == "gz" ) 
-    //     """
-    //     zcat ${contigs} > ${prefix}_contigs.fa
-    //     """
-    // else
-    //     """
-    //     cp ${contigs} ${prefix}_contigs.fa
-    //     """
+    assert contigs.extension == "gz" : "Input contigs file must be gzipped (.gz)"
+    contigs_fa = contigs.baseName
 
     """
-    zcat ${contigs} > ${prefix}_contigs.fa
+    gunzip -c ${contigs} > ${contigs_fa}
     cut_up_fasta.py \\
-        ${prefix}_contigs.fa \\
+        ${contigs_fa} \\
         -c 10000 -o 0 --merge_last \\
         -b ${prefix}.contigs_10K.bed \\
         > ${prefix}.contigs_10K.fa
@@ -50,7 +43,7 @@ process CONCOCT {
     merge_cutup_clustering.py ${prefix}_clustering_gt1000.csv > ${prefix}_clustering_merged.csv
     mkdir -p ${prefix}
     extract_fasta_bins.py \\
-        ${prefix}_contigs.fa \\
+        ${contigs_fa} \\
         ${prefix}_clustering_merged.csv \\
         --output_path ${prefix}
     

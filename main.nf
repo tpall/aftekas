@@ -17,8 +17,8 @@ workflow {
 
     main:
     ch_input = file(params.input)
-    ch_versions = Channel.empty()
-    ch_multiqc = Channel.empty()
+    ch_versions = channel.empty()
+    ch_multiqc = channel.empty()
     // ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
     // ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multiqc_config) : Channel.empty()
 
@@ -81,8 +81,11 @@ workflow {
     ch_versions = ch_versions.mix(PRODIGAL.out.versions)
 
     // // Binning of contigs into MAGs
+    ch_binning_results =  channel.empty()
     BINNING(ch_assemblies, ch_bambais)
     ch_versions = ch_versions.mix(BINNING.out.versions)
+    ch_binning_results = ch_binning_results.mix(BINNING.out.metabat2_bins)
+    ch_binning_results = ch_binning_results.mix(BINNING.out.concoct_bins)
 
     // Generate MultiQC report
 
@@ -92,6 +95,7 @@ workflow {
     trimmed_reads = ch_trimmed_reads
     contigs = ch_contigs
     covstats = ASSEMBLY.out.covstats
+    binning_results = ch_binning_results
     // multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
     
@@ -106,6 +110,9 @@ output {
     }
     covstats {
         path 'assembly/coverage_stats/'
+    }
+    binning_results {
+        path 'binning/'
     }
     // multiqc_report {
     //     path 'multiqc'

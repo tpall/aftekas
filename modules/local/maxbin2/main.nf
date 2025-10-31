@@ -11,7 +11,7 @@ process MAXBIN2 {
     tuple val(meta), path(contigs), path(reads), path(abund)
 
     output:
-    tuple val(meta), path("*.fasta.gz")   , emit: binned_fastas
+    tuple val(meta), path("*.fa.gz")   , emit: binned_fastas
     tuple val(meta), path("*.summary")    , emit: summary
     tuple val(meta), path("*.abundance")  , emit: abundance   , optional: true
     tuple val(meta), path("*.log.gz")     , emit: log
@@ -53,7 +53,7 @@ process MAXBIN2 {
 
     for file in *.fasta.gz ; do
         [[ \${file} =~ (.*).fasta.gz ]];
-        bin="\${BASH_REMATCH[1]}"q
+        bin="\${BASH_REMATCH[1]}"
         mv \${file} \${bin}.fa.gz
     done
 

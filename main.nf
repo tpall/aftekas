@@ -1,6 +1,5 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
-nextflow.preview.output = true
 
 include { samplesheetToList } from 'plugin/nf-schema'
 include { INPUT_CHECK } from './subworkflows/input_check.nf'
@@ -9,7 +8,7 @@ include { PREPROCESS } from './subworkflows/preprocess.nf'
 include { MULTIQC } from './modules/nf-core/multiqc'
 include { CAT_FASTQ } from './modules/nf-core/cat/fastq/main' 
 include { ASSEMBLY } from './subworkflows/assembly.nf'
-include { PRODIGAL } from './modules/nf-core/prodigal/main' 
+// include { PRODIGAL } from './modules/nf-core/prodigal/main' 
 include { BINNING } from './subworkflows/binning.nf'
 
 // Defaulting workflow
@@ -76,9 +75,9 @@ workflow {
         .set { ch_contigs }
 
     // Predict genes with Prodigal
-    PRODIGAL(ch_contigs, "gff")
-    // ch_prodigal_faa = PRODIGAL.out.amino_acid_fasta
-    ch_versions = ch_versions.mix(PRODIGAL.out.versions)
+    // PRODIGAL(ch_contigs, "gff")
+    // // ch_prodigal_faa = PRODIGAL.out.amino_acid_fasta
+    // ch_versions = ch_versions.mix(PRODIGAL.out.versions)
 
     // // Binning of contigs into MAGs
     ch_binning_results =  channel.empty()

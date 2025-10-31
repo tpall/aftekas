@@ -11,7 +11,7 @@ process CONCOCT {
     tuple val(meta), path(contigs), path(bam), path(bai)
 
     output:
-    tuple val(meta), path("${prefix}/*.fa.gz"), emit: fasta
+    tuple val(meta), path("${prefix}*.fa.gz"), emit: fasta
     path "versions.yml", emit: versions
 
     when:
@@ -51,6 +51,9 @@ process CONCOCT {
         mv \${i} \${i/\\///${prefix}_}
         gzip \${i/\\///${prefix}_}
     done
+
+    mv ${prefix}/*.fa.gz ./
+    rm -r ${prefix}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

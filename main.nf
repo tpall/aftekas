@@ -85,8 +85,9 @@ workflow {
     BINNING(ch_assemblies, ch_bambais)
     ch_versions = ch_versions.mix(BINNING.out.versions)
     ch_binning_results = ch_binning_results.mix(BINNING.out.metabat2_bins)
+    ch_binning_results = ch_binning_results.mix(BINNING.out.maxbin2_bins)
     ch_binning_results = ch_binning_results.mix(BINNING.out.concoct_bins)
-
+    
     // Generate MultiQC report
 
 

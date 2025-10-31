@@ -32,12 +32,12 @@ workflow BINNING {
     ch_versions = ch_versions.mix(METABAT2.out.versions)
     
     // MAXBIN2 binning
-    // CONVERT_DEPTHS(ch_metabat2_input)
-    // ch_versions = ch_versions.mix(CONVERT_DEPTHS.out.versions)
-    // ch_maxbin2_input = CONVERT_DEPTHS.out.output
-    // MAXBIN2(ch_maxbin2_input)
-    // // ch_maxbin2_binned = MAXBIN2.out.binned_fastas
-    // ch_versions = ch_versions.mix(MAXBIN2.out.versions)
+    CONVERT_DEPTHS(ch_metabat2_input)
+    ch_versions = ch_versions.mix(CONVERT_DEPTHS.out.versions)
+    ch_maxbin2_input = CONVERT_DEPTHS.out.output
+    MAXBIN2(ch_maxbin2_input)
+    ch_maxbin2_binned = MAXBIN2.out.binned_fastas
+    ch_versions = ch_versions.mix(MAXBIN2.out.versions)
 
     // CONCOCT binning
     assembly
@@ -50,7 +50,7 @@ workflow BINNING {
     ch_versions = ch_versions.mix(CONCOCT.out.versions)
 
     emit:
-    // maxbin2_bins = ch_maxbin2_binned
+    maxbin2_bins = ch_maxbin2_binned
     metabat2_bins = ch_metabat2_binned
     concoct_bins = ch_concoct_binned
     versions = ch_versions

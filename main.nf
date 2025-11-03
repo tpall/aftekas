@@ -81,6 +81,7 @@ workflow {
     ch_binning_results = ch_binning_results.mix(BINNING.out.metabat2_bins)
     ch_binning_results = ch_binning_results.mix(BINNING.out.maxbin2_bins)
     ch_binning_results = ch_binning_results.mix(BINNING.out.concoct_bins)
+    ch_binning_results = ch_binning_results.mix(BINNING.out.vamb_bins)
 
     // Bin refinement
     BINREFINE(

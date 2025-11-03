@@ -6,7 +6,7 @@ include {
 include { MAXBIN2 } from '../modules/local/maxbin2/main' 
 include { METABAT2_METABAT2 as METABAT2 } from '../modules/nf-core/metabat2/metabat2/main'
 include { CONCOCT } from '../modules/local/concoct/main'
-include { VAMB_BIN } from '../modules/nf-core/vamb/bin/main'
+include { VAMB_BIN } from '../modules/local/vamb/bin/main'
 
 workflow BINNING {
 

@@ -8,8 +8,8 @@ include { PREPROCESS } from './subworkflows/preprocess.nf'
 include { MULTIQC } from './modules/nf-core/multiqc'
 include { CAT_FASTQ } from './modules/nf-core/cat/fastq/main' 
 include { ASSEMBLY } from './subworkflows/assembly.nf'
-// include { PRODIGAL } from './modules/nf-core/prodigal/main' 
 include { BINNING } from './subworkflows/binning.nf'
+include { BINREFINE } from './subworkflows/binrefine.nf'
 
 // Defaulting workflow
 workflow {
@@ -74,11 +74,6 @@ workflow {
         .map { meta, contigs, _bam -> [ meta, contigs ] }
         .set { ch_contigs }
 
-    // Predict genes with Prodigal
-    // PRODIGAL(ch_contigs, "gff")
-    // // ch_prodigal_faa = PRODIGAL.out.amino_acid_fasta
-    // ch_versions = ch_versions.mix(PRODIGAL.out.versions)
-
     // // Binning of contigs into MAGs
     ch_binning_results =  channel.empty()
     BINNING(ch_assemblies, ch_bambais)
@@ -86,6 +81,15 @@ workflow {
     ch_binning_results = ch_binning_results.mix(BINNING.out.metabat2_bins)
     ch_binning_results = ch_binning_results.mix(BINNING.out.maxbin2_bins)
     ch_binning_results = ch_binning_results.mix(BINNING.out.concoct_bins)
+
+    // Bin refinement
+    BINREFINE(
+        ch_contigs,
+        // maxbin2_bins: ch_binning_results.filter { it -> it.process == 'MAXBIN2' }.map { it -> it.bins },
+        // metabat2_bins: ch_binning_results.filter { it -> it.process == 'METABAT2' }.map { it -> it.bins },   
+        // concoct_bins: ch_binning_results.filter { it -> it.process == 'CONCOCT' }.map { it -> it.bins }
+    )
+    ch_versions = ch_versions.mix(BINREFINE.out.versions)
     
     // Generate MultiQC report
 
@@ -96,6 +100,7 @@ workflow {
     contigs = ch_contigs
     covstats = ASSEMBLY.out.covstats
     binning_results = ch_binning_results
+    prodigal_faa = BINREFINE.out.prodigal_faa
     // multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
     
@@ -113,6 +118,9 @@ output {
     }
     binning_results {
         path 'binning/'
+    }
+    prodigal_faa {
+        path 'binrefine/prodigal/'
     }
     // multiqc_report {
     //     path 'multiqc'

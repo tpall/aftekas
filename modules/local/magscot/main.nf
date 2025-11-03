@@ -5,8 +5,7 @@ process MAGSCOT {
     container "ikmb/magscot:v1.1"
 
     input:
-    path contigs
-    path depth_stats
+    tuple val(meta), path(sets), path(hmm)
 
     output:
     path "magscot_bins/"      , emit: bins

@@ -1,8 +1,12 @@
 include { METABAT2_JGISUMMARIZEBAMCONTIGDEPTHS as GET_ABUN } from '../modules/nf-core/metabat2/jgisummarizebamcontigdepths/main'
-include { CONVERT_DEPTHS } from '../modules/local/convert_depths/main'
+include {
+    CONVERT_DEPTHS as MAXBIN2_DEPTHS
+    CONVERT_DEPTHS as VAMB_DEPTHS
+    } from '../modules/local/convert_depths/main'
 include { MAXBIN2 } from '../modules/local/maxbin2/main' 
 include { METABAT2_METABAT2 as METABAT2 } from '../modules/nf-core/metabat2/metabat2/main'
 include { CONCOCT } from '../modules/local/concoct/main'
+include { VAMB_BIN } from '../modules/nf-core/vamb/bin/main'
 
 workflow BINNING {
 
@@ -11,7 +15,7 @@ workflow BINNING {
     bambais
 
     main:
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     // Calculate contig abundance
     GET_ABUN(
@@ -32,9 +36,9 @@ workflow BINNING {
     ch_versions = ch_versions.mix(METABAT2.out.versions)
     
     // MAXBIN2 binning
-    CONVERT_DEPTHS(ch_metabat2_input)
-    ch_versions = ch_versions.mix(CONVERT_DEPTHS.out.versions)
-    ch_maxbin2_input = CONVERT_DEPTHS.out.output
+    MAXBIN2_DEPTHS(ch_metabat2_input, [])
+    ch_versions = ch_versions.mix(MAXBIN2_DEPTHS.out.versions)
+    ch_maxbin2_input = MAXBIN2_DEPTHS.out.output
     MAXBIN2(ch_maxbin2_input)
     ch_maxbin2_binned = MAXBIN2.out.binned_fastas
     ch_versions = ch_versions.mix(MAXBIN2.out.versions)
@@ -49,10 +53,20 @@ workflow BINNING {
     ch_concoct_binned = CONCOCT.out.fasta
     ch_versions = ch_versions.mix(CONCOCT.out.versions)
 
+    // VAMB binning
+    VAMB_DEPTHS(ch_metabat2_input, "contigname")
+    VAMB_DEPTHS.out.output
+    .map { meta, contigs, _reads, depths -> [ meta, contigs, depths, [], [] ] }
+    .set { ch_vamb_input }
+    VAMB_BIN(ch_vamb_input)
+    ch_vamb_binned = VAMB_BIN.out.bins
+    ch_versions = ch_versions.mix(VAMB_BIN.out.versions)
+
     emit:
     maxbin2_bins = ch_maxbin2_binned
     metabat2_bins = ch_metabat2_binned
     concoct_bins = ch_concoct_binned
+    vamb_bins = ch_vamb_binned
     versions = ch_versions
 
 }

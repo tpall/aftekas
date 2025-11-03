@@ -48,8 +48,8 @@ process CONCOCT {
         --output_path ${prefix}
     
     for i in ${prefix}/*.fa; do
-        mv \${i} \${i/\\///${prefix}_}
-        gzip \${i/\\///${prefix}_}
+        mv \${i} \${i/\\///${prefix}.}
+        gzip \${i/\\///${prefix}.}
     done
 
     mv ${prefix}/*.fa.gz ./

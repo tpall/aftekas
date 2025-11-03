@@ -8,6 +8,7 @@ process CONVERT_DEPTHS {
 
     input:
     tuple val(meta), path(fasta), path(depth)
+    val(contigs_header)
 
     output:
     // need to add empty val because representing reads as we dont want maxbin to calculate for us.
@@ -31,6 +32,12 @@ process CONVERT_DEPTHS {
         name=\$( echo \${header[\$col-1]} | sed s/\\.bam\$// )
         bioawk -t '{if (NR > 1) {print \$1, \$'"\$col"'}}' ${depth.toString() - '.gz'} > \${name}.abund
     done
+
+    if [ -n ${contigs_header} ]; then
+        for file in *.abund; do
+            sed -i "1i\\${contigs_header}\t${meta.id}" \$file
+        done
+    fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

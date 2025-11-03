@@ -5,7 +5,7 @@ process HMMER_HMMSEARCH {
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/hmmer:3.4--hdbdd923_1' :
-        'biocontainers/hmmer:3.4--hdbdd923_1' }"
+        'quay.io/biocontainers/hmmer:3.4--hdbdd923_1' }"
 
     input:
     tuple val(meta), path(hmmfile), path(seqdb), val(write_align), val(write_target), val(write_domain)
@@ -27,7 +27,11 @@ process HMMER_HMMSEARCH {
     alignment      = write_align     ? "-A ${prefix}.sto" : ''
     target_summary = write_target    ? "--tblout ${prefix}.tbl" : ''
     domain_summary = write_domain    ? "--domtblout ${prefix}.domtbl" : ''
+    assert seqdb.extension == "gz" : "Input contigs file must be gzipped (.gz)"
+    seqdb_uz = seqdb.baseName
+
     """
+    gunzip -c ${seqdb} > ${seqdb_uz}
     hmmsearch \\
         $args \\
         --cpu $task.cpus \\
@@ -36,7 +40,7 @@ process HMMER_HMMSEARCH {
         $target_summary \\
         $domain_summary \\
         $hmmfile \\
-        $seqdb
+        $seqdb_uz
 
     gzip --no-name *.txt \\
         ${write_align ? '*.sto' : ''} \\

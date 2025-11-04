@@ -7,6 +7,7 @@ include { MAXBIN2 } from '../modules/local/maxbin2/main'
 include { METABAT2_METABAT2 as METABAT2 } from '../modules/nf-core/metabat2/metabat2/main'
 include { CONCOCT } from '../modules/local/concoct/main'
 include { VAMB_BIN } from '../modules/local/vamb/bin/main'
+include { CONTIG_TO_BIN } from '../modules/local/magscot/contig_to_bin/main'
 
 workflow BINNING {
 
@@ -62,11 +63,36 @@ workflow BINNING {
     ch_vamb_binned = VAMB_BIN.out.bins
     ch_versions = ch_versions.mix(VAMB_BIN.out.versions)
 
+    // Merge binning results, ensure that all binners output lists of bins
+    ch_metabat2_binned
+    .map { meta, bins -> [ meta.id, bins ] }
+    .join ( ch_maxbin2_binned
+        .map { meta, bins -> [ meta.id, bins ] },
+        by: 0
+        )
+    .map { id, bins_metabat2, bins_maxbin2 -> [ id, [bins_metabat2] + [bins_maxbin2] ] }
+    .join ( ch_concoct_binned
+        .map { meta, bins -> [ meta.id, bins ] },
+        by: 0
+        )
+    .map { id, bins_prev, bins_concoct -> [ id, [bins_prev] + [bins_concoct] ] }
+    .join ( ch_vamb_binned
+        .map { meta, bins -> [ meta.id, bins ] },
+        by: 0
+        )
+    .map { id, bins_prev, bins_vamb -> [ id, [bins_prev] + [bins_vamb] ] }  
+    .map { id, bins_list -> 
+            def fmeta = [:]
+                fmeta.id = id
+            return [ fmeta, bins_list.flatten() ] }
+    .set { ch_binning_results }
+
+    CONTIG_TO_BIN(ch_binning_results)
+    ch_contigs_to_bin = CONTIG_TO_BIN.out.contigs_to_bin
+
     emit:
-    maxbin2_bins = ch_maxbin2_binned
-    metabat2_bins = ch_metabat2_binned
-    concoct_bins = ch_concoct_binned
-    vamb_bins = ch_vamb_binned
+    binning_results = ch_binning_results
+    contigs_to_bin = ch_contigs_to_bin
     versions = ch_versions
 
 }

@@ -75,21 +75,13 @@ workflow {
         .set { ch_contigs }
 
     // // Binning of contigs into MAGs
-    ch_binning_results =  channel.empty()
     BINNING(ch_assemblies, ch_bambais)
     ch_versions = ch_versions.mix(BINNING.out.versions)
-    ch_binning_results = ch_binning_results.mix(BINNING.out.metabat2_bins)
-    ch_binning_results = ch_binning_results.mix(BINNING.out.maxbin2_bins)
-    ch_binning_results = ch_binning_results.mix(BINNING.out.concoct_bins)
-    ch_binning_results = ch_binning_results.mix(BINNING.out.vamb_bins)
+    ch_contigs_to_bin = BINNING.out.contigs_to_bin
+    ch_binning_results = BINNING.out.binning_results
 
     // Bin refinement
-    BINREFINE(
-        ch_contigs,
-        // maxbin2_bins: ch_binning_results.filter { it -> it.process == 'MAXBIN2' }.map { it -> it.bins },
-        // metabat2_bins: ch_binning_results.filter { it -> it.process == 'METABAT2' }.map { it -> it.bins },   
-        // concoct_bins: ch_binning_results.filter { it -> it.process == 'CONCOCT' }.map { it -> it.bins }
-    )
+    BINREFINE(ch_contigs, ch_contigs_to_bin)
     ch_versions = ch_versions.mix(BINREFINE.out.versions)
     
     // Generate MultiQC report

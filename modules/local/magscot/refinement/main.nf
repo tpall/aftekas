@@ -1,11 +1,11 @@
 process MAGSCOT {
-    tag "$contigs.baseName"
+    tag "$meta.id"
 
     conda "${moduleDir}/environment.yml"
     container "ikmb/magscot:v1.1"
 
     input:
-    tuple val(meta), path(sets), path(hmm)
+    tuple val(meta), path(contigs_to_bin), path(hmm)
 
     output:
     path "magscot_bins/"      , emit: bins
@@ -16,17 +16,14 @@ process MAGSCOT {
     task.ext.when == null || task.ext.when
 
     script:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+
     """
-    magscot \\
-        -i $contigs \\
-        -d $depth_stats \\
-        -o magscot_bins/ \\
-        -t ${task.cpus} \\
-        --report magscot_report.txt
+    Rscript scripts/MAGScoT.R -i ${contigs_to_bin} --hmm ${hmm} --out ${prefix}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        magscot: \$(magscot --version | awk '{print \$2}')
+        magscot: v1.1
     END_VERSIONS
     """
 }

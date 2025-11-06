@@ -77,7 +77,7 @@ workflow {
     // // Binning of contigs into MAGs
     BINNING(ch_assemblies, ch_bambais)
     ch_versions = ch_versions.mix(BINNING.out.versions)
-    ch_contigs_to_bin = BINNING.out.contigs_to_bin
+    ch_contigs_to_bin = BINNING.out.contigs2bin
     ch_binning_results = BINNING.out.binning_results
 
     // Bin refinement
@@ -94,6 +94,7 @@ workflow {
     covstats = ASSEMBLY.out.covstats
     binning_results = ch_binning_results
     prodigal_faa = BINREFINE.out.prodigal_faa
+    final_bins = BINREFINE.out.refined_bins
     // multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
     
@@ -114,6 +115,9 @@ output {
     }
     prodigal_faa {
         path 'binrefine/prodigal/'
+    }
+    final_bins {
+        path 'binrefine/bins/'
     }
     // multiqc_report {
     //     path 'multiqc'

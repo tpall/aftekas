@@ -7,7 +7,7 @@ include { MAXBIN2 } from '../modules/local/maxbin2/main'
 include { METABAT2_METABAT2 as METABAT2 } from '../modules/nf-core/metabat2/metabat2/main'
 include { CONCOCT } from '../modules/local/concoct/main'
 include { VAMB_BIN } from '../modules/local/vamb/bin/main'
-include { CONTIG_TO_BIN } from '../modules/local/magscot/contig_to_bin/main'
+include { CONTIG_TO_BIN } from '../modules/local/contig_to_bin/main'
 
 workflow BINNING {
 
@@ -87,12 +87,12 @@ workflow BINNING {
             return [ fmeta, bins_list.flatten() ] }
     .set { ch_binning_results }
 
-    CONTIG_TO_BIN(ch_binning_results)
-    ch_contigs_to_bin = CONTIG_TO_BIN.out.contigs_to_bin
+    CONTIG_TO_BIN(ch_binning_results, "Binette")
+    ch_contigs2bin = CONTIG_TO_BIN.out.contigs_to_bin
 
     emit:
     binning_results = ch_binning_results
-    contigs_to_bin = ch_contigs_to_bin
+    contigs2bin = ch_contigs2bin
     versions = ch_versions
 
 }

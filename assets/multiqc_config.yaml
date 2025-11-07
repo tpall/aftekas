@@ -23,14 +23,14 @@ run_modules:
 top_modules:
   - "fastqc":
       name: "FastQC: raw reads"
-      path_filters_exclude:
-        - "*trimmed*"
+      path_filters:
+        - "*raw*"
   - "fastp"
   - "fastqc":
       name: "FastQC: after preprocessing"
       info: "After trimming and, if requested, contamination removal."
       path_filters:
-        - "*trimmed*"
+        - "*preproc*"
   - "bowtie2":
       name: "Bowtie2: PhiX removal"
       info: "Mapping statistics of reads mapped against PhiX and subsequently removed."

@@ -24,10 +24,14 @@ workflow BINREFINE {
     
     BINETTE(ch_binette_input, params.checkm2_db)
     ch_refined_bins = BINETTE.out.bins
+    ch_refined_bins_qc = BINETTE.out.quality_report
+    ch_input_bins_qc = BINETTE.out.input_quality_report
     ch_versions = ch_versions.mix(BINETTE.out.versions)
 
     emit:
     refined_bins = ch_refined_bins
+    refined_bins_qc = ch_refined_bins_qc
+    input_bins_qc = ch_input_bins_qc
     prodigal_faa = ch_prodigal_faa
     versions = ch_versions
 

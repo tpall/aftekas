@@ -31,8 +31,8 @@ process CONTIG_TO_BIN {
         """
         for i in ${bins}; do
             binname=\$(echo \$(basename \$i) | sed "s/\\.fa\\.gz//g")
-            binner=\$(echo \$binname | awk -F_ '{print \$2}')
-            zcat \$i | grep ">" | perl -pe "s/\n/\t\${binname}\n/g" | perl -pe "s/>//g" | awk '{print \$1"\t"\$2}' >> ${prefix}.\${binner}.contigs_to_bin.tsv
+            bins=\$(echo \$binname | awk -F. '{print \$1}')
+            zcat \$i | grep ">" | perl -pe "s/\n/\t\${binname}\n/g" | perl -pe "s/>//g" | awk '{print \$1"\t"\$2}' >> \${bins}.contigs_to_bin.tsv
         done
         """
     else 

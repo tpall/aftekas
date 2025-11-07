@@ -1,4 +1,4 @@
-process FIX_FASTA_HEADERS {
+process FIX_FASTA_HEADER {
     tag "$meta.id"
     label 'process_small'
 
@@ -12,7 +12,7 @@ process FIX_FASTA_HEADERS {
 
     output:
     tuple val(meta), path("*fixed*"), emit: fixed
-    path "versions.yml"             , emit: versions
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -10,8 +10,7 @@ process FETCH_INDEX {
     tuple val(meta), path('*.{bt2,bt2l}'), emit: index
 
     script:
-    """ 
-    mkdir bowtie2
+    """
     tar -xf ${url}
     rm *.tar
     """

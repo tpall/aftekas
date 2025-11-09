@@ -1,5 +1,5 @@
-process QUAST {
-    tag "${meta.assembler}-${meta.id}"
+process METAQUAST {
+    tag "${meta.assembler}_${meta.id}"
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -11,13 +11,19 @@ process QUAST {
 
     output:
     path "QUAST/*"                       , emit: qc
-    path "QUAST/report_rawassemblies.tsv", emit: report
+    path "QUAST/*report.tsv"             , emit: report
     path "versions.yml"                  , emit: versions
 
+    when:
+    task.ext.when == null || task.ext.when
+
     script:
+    def args = task.ext.args ?: ''
+    def prefix = task.ext.prefix ?: "${meta.assembler}_${meta.id}"
+    
     """
-    metaquast.py --threads "${task.cpus}" --rna-finding --max-ref-number 0 -l "${meta.assembler}-${meta.id}" "${assembly}" -o "QUAST"
-    cp QUAST/report.tsv QUAST/report_rawassemblies.tsv
+    metaquast.py ${args} -o QUAST --threads ${task.cpus} -l ${prefix} ${assembly}
+    mv QUAST/report.tsv QUAST/${prefix}.report.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

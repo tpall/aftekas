@@ -1,15 +1,10 @@
-include { 
-    HMMER_HMMSEARCH as HMMSEARCH_PFAM
-    HMMER_HMMSEARCH as HMMSEARCH_TIGRFAM
-     } from '../modules/local/hmmer/hmmsearch/main'
+include { BINETTE } from '../modules/local/binette/main'
 include { PRODIGAL } from '../modules/nf-core/prodigal/main' 
-include { CAT_HMM } from '../modules/local/cat/hmm/main'
-include { MAGSCOT } from '../modules/local/magscot/refinement/main'
 
 workflow BINREFINE {
     take:
     contigs
-    contigs_to_bin
+    contigs_to_bin_mappings
 
     main:
     ch_versions = channel.empty()
@@ -20,47 +15,23 @@ workflow BINREFINE {
     ch_prodigal_faa = PRODIGAL.out.amino_acid_fasta
     ch_versions = ch_versions.mix(PRODIGAL.out.versions)
 
-    // Annotate genes with HMMER
-    HMMSEARCH_PFAM(
-        ch_prodigal_faa
-        .combine( channel.of(params.hmmer_pfam_db) ) 
-        .map ({ meta, faa, pfam_db -> [ meta, pfam_db, faa, false, true, false ]})
-        )
-    ch_tblouts_pfam = HMMSEARCH_PFAM.out.target_summary
-    ch_versions = ch_versions.mix(HMMSEARCH_PFAM.out.versions)
-    HMMSEARCH_TIGRFAM(
-        ch_prodigal_faa
-        .combine( channel.of(params.hmmer_tigrfam_db) )
-        .map ( { meta, faa, tigrfam_db -> [ meta, tigrfam_db, faa, false, true, false ]})
-        )
-    ch_tblouts_tigrfam = HMMSEARCH_TIGRFAM.out.target_summary
-    ch_tblouts_pfam
-    .map ( { meta, pfam -> [ meta.id, meta, pfam ] } )
-    .set { ch_tblouts_pfam_mapped }
-    ch_tblouts_tigrfam
-    .map( { meta, tigrfam -> [ meta.id, meta, tigrfam ] } )
-    .set { ch_tblouts_tigrfam_mapped }
-
-    ch_tblouts_pfam_mapped
-    .combine ( ch_tblouts_tigrfam_mapped, by: 0 )
-    .map( { _id, meta, pfam, _meta2, tigrfam -> [ meta, tigrfam, pfam ]} )
-    .set { ch_tblouts }
-
-    CAT_HMM(ch_tblouts)
-    ch_hmm = CAT_HMM.out.hmm
-
-    contigs_to_bin
-    .map ( { meta, tsv -> [ meta.id, meta, tsv ] } )
-    .join (
-        ch_hmm
-        .map ( { meta, hmm -> [ meta.id, meta, hmm ] } )
-    )
-    .map ( { _id, meta, tsv, _meta2, hmm -> [ meta, tsv, hmm ] } )
-    .set { ch_magscot_input }
-    MAGSCOT( ch_magscot_input )
+    ch_binette_input = contigs_to_bin_mappings
+    .map { meta, mappings ->  [ meta.id, meta, mappings ] } 
+    .join( ch_contigs.map { meta, cont -> [ meta.id, meta, cont ] }, by: 0 )
+    .map { id, meta, mappings, _meta2, cont -> [ id, meta, mappings, cont ] }
+    .join( ch_prodigal_faa.map { meta, proteins -> [ meta.id, meta, proteins] } )
+    .map { _id, meta, mappings, cont, _meta2, proteins -> [ meta, mappings, [], cont, proteins ] }
+    
+    BINETTE(ch_binette_input, params.checkm2_db)
+    ch_refined_bins = BINETTE.out.bins
+    ch_refined_bins_qc = BINETTE.out.quality_report
+    ch_input_bins_qc = BINETTE.out.input_quality_report
+    ch_versions = ch_versions.mix(BINETTE.out.versions)
 
     emit:
-    // final_bins = refined_bins
+    refined_bins = ch_refined_bins
+    refined_bins_qc = ch_refined_bins_qc
+    input_bins_qc = ch_input_bins_qc
     prodigal_faa = ch_prodigal_faa
     versions = ch_versions
 

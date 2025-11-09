@@ -13,10 +13,10 @@ workflow SETUP {
     host_index_url  // [host index path/url] (optional)
 
     main:
-    ch_versions = Channel.empty()
+    ch_versions = channel.empty()
 
     // Download and build PhiX index
-    Channel.from(phix_accession)
+    channel.from(phix_accession)
         .map { v -> tuple( [ id: 'phix' ], v ) }
         .set { ch_phix_accession }   
     GET_PHIX_GENOME(ch_phix_accession)
@@ -28,14 +28,14 @@ workflow SETUP {
     ch_versions = ch_versions.mix(BUILD_PHIX_INDEX.out.versions)
 
     // Download host fasta and build index
-    Channel.fromPath(host_fasta_url)
+    channel.fromPath(host_fasta_url)
         .map { url -> tuple( [ id : url.baseName ], url ) }
         .set { ch_host_fasta }
     if ( !params.host_index_url ) {
         ch_host_index = BUILD_HOST_INDEX( ch_host_fasta ).index
         ch_versions = ch_versions.mix( BUILD_HOST_INDEX.out.versions )
     } else {
-        Channel.fromPath(host_index_url)
+        channel.fromPath(host_index_url)
         .map { url -> tuple( [ id : url.baseName ], url ) }
         .set { ch_host_index_url }
         ch_host_index = FETCH_HOST_INDEX( ch_host_index_url ).index

@@ -1,0 +1,9 @@
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::checkm2=1.1.0
+- bioconda::diamond=2.1.11
+- pip
+- pip:
+  - Binette==1.2.0

@@ -1,19 +1,19 @@
 
 include { MEGAHIT } from '../modules/nf-core/megahit/main' 
-include { QUAST as METAQUAST_ASSEMBLY } from '../modules/local/metaquast/assembly/main'  
-include { BBMAP_ALIGN as ALIGN_MEGAHIT } from '../modules/local/bbmap/align/main'
+include { METAQUAST } from '../modules/local/metaquast/main'  
+include { BBMAP_ALIGN as ALIGN } from '../modules/local/bbmap/align/main'
 include { SAMTOOLS_SORT } from '../modules/nf-core/samtools/sort/main'
-include { BBMAP_PILEUP as PILEUP_MEGAHIT } from '../modules/nf-core/bbmap/pileup/main'
-include { FIX_FASTA_HEADERS } from '../modules/local/bbmap/reformat/main'
+include { BBMAP_PILEUP as PILEUP } from '../modules/nf-core/bbmap/pileup/main'
+include { FIX_FASTA_HEADER } from '../modules/local/fix_fasta_header/main'
 
 workflow ASSEMBLY {
     take:
     normed_reads
-    trimmed_reads
+    processed_reads
 
     main:
-    ch_versions = Channel.empty()
-    ch_multiqc = Channel.empty()
+    ch_versions = channel.empty()
+    ch_multiqc = channel.empty()
 
     // Assemble reads with MEGAHIT
     normed_reads
@@ -34,50 +34,47 @@ workflow ASSEMBLY {
     .set { ch_contigs_megahit }
 
     // Fix contig headers by keeping only contig id
-    FIX_FASTA_HEADERS(ch_contigs_megahit)
-    ch_contigs = FIX_FASTA_HEADERS.out.fixed
+    FIX_FASTA_HEADER(ch_contigs_megahit)
+    ch_contigs = FIX_FASTA_HEADER.out.fixed
 
     // Assess assembly quality with QUAST
-    METAQUAST_ASSEMBLY(ch_contigs)
-    ch_multiqc = ch_multiqc.mix(METAQUAST_ASSEMBLY.out.qc)
-    ch_versions = ch_versions.mix(METAQUAST_ASSEMBLY.out.versions)
+    METAQUAST(ch_contigs)
+    ch_multiqc = ch_multiqc.mix(METAQUAST.out.report)
+    ch_versions = ch_versions.mix(METAQUAST.out.versions)
 
     // Map reads back to assembly to calculate coverage
-    ch_contigs
-    .map { meta, contigs -> [meta.id, meta, contigs] }
-    .set { ch_bbmap_contigs }     
-    
-    trimmed_reads.map { meta, sample_reads -> [meta.id, meta, sample_reads] }
-    .join(ch_bbmap_contigs, by: 0)
-    .map { _id, reads_meta, sample_reads, _contigs_meta, contigs -> [ reads_meta, sample_reads, contigs ]
-    }
+    processed_reads.map { meta, reads -> [ meta.id, meta, reads ] }
+    .join( ch_contigs.map { meta, contigs -> [ meta.id, meta, contigs ] }, by: 0 )
+    .map { _id, meta, reads, _meta2, contigs -> [ meta, reads, contigs ] }
     .set { ch_bbmap_input }
 
-    ALIGN_MEGAHIT (ch_bbmap_input)
-    ch_bams = ALIGN_MEGAHIT.out.bam
-    ch_versions = ch_versions.mix(ALIGN_MEGAHIT.out.versions)
-    ch_multiqc = ch_multiqc.mix(ALIGN_MEGAHIT.out.log)
+    ALIGN(ch_bbmap_input)
+    ch_bams = ALIGN.out.bam
+    ch_versions = ch_versions.mix(ALIGN.out.versions)
 
     SAMTOOLS_SORT (ch_bams, tuple([:], []), 'bai')
     ch_sorted_bams = SAMTOOLS_SORT.out.bam
     ch_sorted_bambais = SAMTOOLS_SORT.out.bai
     ch_versions = ch_versions.mix(SAMTOOLS_SORT.out.versions)
 
-    PILEUP_MEGAHIT (ch_sorted_bams)
-    ch_covstats = PILEUP_MEGAHIT.out.covstats
-    ch_versions = ch_versions.mix(PILEUP_MEGAHIT.out.versions)
-    ch_multiqc = ch_multiqc.mix(PILEUP_MEGAHIT.out.hist)
+    PILEUP(ch_sorted_bams)
+    PILEUP.out.covstats
+    .map { meta, stats -> 
+        def fmeta = [:]
+        fmeta.id = meta.id
+        fmeta.assembler = "MEGAHIT"
+        return [ fmeta, stats ]
+    }
+    .set { ch_covstats }
+    ch_versions = ch_versions.mix(PILEUP.out.versions)
 
-    ch_bbmap_contigs
-    .combine(
-        ch_sorted_bams
-        .map { meta, bam -> [ meta.id, meta, bam ] }
-        , by: 0)
+    ch_contigs.map { meta, contigs -> [ meta.id, meta, contigs ] }
+    .combine(ch_sorted_bams.map { meta, bam -> [ meta.id, meta, bam ] }, by: 0)
     .map { _id, _meta, contigs, _meta2, bam -> [ _meta, contigs, bam ] }
-    .set { ch_assembies }
+    .set { ch_assemblies }
 
     emit:
-    assemblies = ch_assembies
+    assemblies = ch_assemblies
     covstats = ch_covstats
     bambais = ch_sorted_bambais
     versions = ch_versions

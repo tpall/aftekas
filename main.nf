@@ -9,6 +9,7 @@ include { CAT_FASTQ } from './modules/nf-core/cat/fastq/main'
 include { ASSEMBLY } from './subworkflows/assembly.nf'
 include { BINNING } from './subworkflows/binning.nf'
 include { BINREFINE } from './subworkflows/binrefine.nf'
+include { TAXONOMY } from './subworkflows/taxonomy.nf'
 include { MULTIQC } from './modules/nf-core/multiqc'
 
 // Defaulting workflow
@@ -81,8 +82,10 @@ workflow {
     // Bin refinement
     BINREFINE(ch_contigs, ch_contigs_to_bin)
     ch_versions = ch_versions.mix(BINREFINE.out.versions)
-    ch_input_bins_qc = BINREFINE.out.input_bins_qc
-    ch_refined_bins_qc = BINREFINE.out.refined_bins_qc
+    ch_final_bins = BINREFINE.out.refined_bins
+
+    TAXONOMY(ch_final_bins)
+    ch_versions = ch_versions.mix(TAXONOMY.out.versions)
 
     // Generate MultiQC report
     // ch_multiqc = ch_multiqc.mix(ch_input_bins_qc, ch_refined_bins_qc)
@@ -98,8 +101,10 @@ workflow {
     prodigal_faa = BINREFINE.out.prodigal_faa
     binning_results = ch_binning_results
     binning_results_qc = BINREFINE.out.input_bins_qc.map { _meta, file -> [ file ]}.flatten()
-    final_bins = BINREFINE.out.refined_bins
+    final_bins = ch_final_bins
     final_bins_qc = BINREFINE.out.refined_bins_qc
+    tax_summary = TAXONOMY.out.tax_summary
+    tax_tree = TAXONOMY.out.tax_tree
     multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
 }
@@ -131,6 +136,12 @@ output {
     }
     final_bins_qc {
         path "binrefine/qc/"
+    }
+    tax_summary {
+        path "taxonomy/"
+    }
+    tax_tree {
+        path "taxonomy"
     }
     multiqc_report {
         path "."

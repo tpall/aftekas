@@ -8,8 +8,8 @@ process GTDBTK_CLASSIFYWF {
         'quay.io/biocontainers/gtdbtk:2.5.2--pyh1f0d9b5_0' }"
 
     input:
-    tuple val(meta)   , path("bins/*")
-    tuple val(db_name), path(db)
+    tuple val(meta), path(bins)
+    path db
     val use_pplacer_scratch_dir
 
     output:
@@ -32,6 +32,7 @@ process GTDBTK_CLASSIFYWF {
     def args            = task.ext.args ?: ''
     prefix              = task.ext.prefix ?: "${meta.id}"
     def pplacer_scratch = use_pplacer_scratch_dir ? "--scratch_dir pplacer_tmp" : ""
+    
     """
     export GTDBTK_DATA_PATH="\$(find -L ${db} -name 'metadata' -type d -exec dirname {} \\;)"
 
@@ -41,7 +42,7 @@ process GTDBTK_CLASSIFYWF {
 
     gtdbtk classify_wf \\
         ${args} \\
-        --genome_dir bins \\
+        --genome_dir ${bins} \\
         --prefix "${prefix}" \\
         --out_dir ${prefix} \\
         --cpus ${task.cpus} \\

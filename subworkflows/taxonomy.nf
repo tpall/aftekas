@@ -9,7 +9,8 @@ workflow TAXONOMY {
     main:
     ch_versions = channel.empty()
     
-    CLASSIFY(final_bins, params.gtdbtk_db, params.use_pplacer_scratch_dir)
+    gtdbtk_db = tuple('release220', params.gtdbtk_db)
+    CLASSIFY(final_bins, gtdbtk_db, params.use_pplacer_scratch_dir)
     ch_tax_summary = CLASSIFY.out.summary
     ch_tax_tree = CLASSIFY.out.tree
     ch_versions = CLASSIFY.out.versions

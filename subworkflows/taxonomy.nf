@@ -1,4 +1,4 @@
-include { GTDBTK_CLASSIFYWF as CLASSIFY } from '../modules/nf-core/gtdbtk/classifywf/main'
+include { GTDBTK_CLASSIFYWF as CLASSIFY } from '../modules/local/gtdbtk/classifywf/main'
 
 
 workflow TAXONOMY {

@@ -11,7 +11,7 @@ process BINETTE {
     path(checkm2_db)
 
     output:
-    tuple val(meta), path("final_bins/*.fa.gz"), emit: bins, optional: true
+    tuple val(meta), path("*_final_bins/*.fa.gz"), emit: bins, optional: true
     tuple val(meta), path("*_final_bins_quality_reports.tsv"), emit: quality_report
     tuple val(meta), path("*_final_contig_to_bin.tsv"), emit: contig_to_bin
     tuple val(meta), path("input_bins_quality_reports/*.tsv"), emit: input_quality_report
@@ -52,6 +52,8 @@ process BINETTE {
 
     mv results/* .
     rm -rf results
+
+    mv final_bins ${prefix}_final_bins
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

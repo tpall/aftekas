@@ -10,10 +10,9 @@ workflow TAXONOMY {
     ch_versions = channel.empty()
     
     final_bins
-    .map { meta, bins -> [ meta, bins.parent ]}
-    .set { ch_bins_dir }
+    .set { ch_bins }
 
-    CLASSIFY(ch_bins_dir, params.gtdbtk_db, params.use_pplacer_scratch_dir)
+    CLASSIFY(ch_bins, params.gtdbtk_db, false)
     ch_tax_summary = CLASSIFY.out.summary
     ch_tax_tree = CLASSIFY.out.tree
     ch_versions = CLASSIFY.out.versions

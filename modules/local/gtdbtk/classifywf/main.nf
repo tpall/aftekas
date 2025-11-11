@@ -40,9 +40,12 @@ process GTDBTK_CLASSIFYWF {
         mkdir pplacer_tmp
     fi
 
+    mkdir -p ${prefix}/bins
+    cp ${bins} ${prefix}/bins
+
     gtdbtk classify_wf \\
         ${args} \\
-        --genome_dir ${bins} \\
+        --genome_dir ${prefix}/bins \\
         --prefix "${prefix}" \\
         --out_dir ${prefix} \\
         --cpus ${task.cpus} \\
@@ -50,6 +53,8 @@ process GTDBTK_CLASSIFYWF {
 
     mv ${prefix}/gtdbtk.log "${prefix}/${prefix}.log"
     mv ${prefix}/gtdbtk.warnings.log "${prefix}/${prefix}.warnings.log"
+
+    rm -rf "${prefix}/bins"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

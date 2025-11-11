@@ -8,7 +8,7 @@ process GTDBTK_CLASSIFYWF {
         'quay.io/biocontainers/gtdbtk:2.5.2--pyh1f0d9b5_0' }"
 
     input:
-    tuple val(meta), path(bins)
+    tuple val(meta), path(bins, stageAs: "bins???/*")
     path db
     val use_pplacer_scratch_dir
 

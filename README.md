@@ -50,17 +50,25 @@ In the example above the sample EV25 was spread to two lines during sequencing a
 
 ### Running
 
+```bash
+nextflow pull tpall/aftekas
+```
+
 Locally, this workflow can be run using docker, assuming that java, nextflow and docker are running:
 
 ```bash
-nextflow run main.nf -resume
+nextflow run tpall/aftekas --input my_samples.csv --checkm2_db "<path to directory with>/CheckM2_database/uniref100.KO.1.dmnd" --gtdbtk_db "<path to directory with>/release22<your downloaded release>/" 
 ```
 
 In a slurm cluster: activate required software (java, nextflow, singularity) and run e.g.:
 
 ```bash
-nextflow run main.nf -profile cluster --input samples100.csv --array_size 4 --queue main -resume -c hpc_nextflow.config
+nextflow run tpall/aftekas -profile cluster --input my_samples.csv --array_size 4 --queue main -resume --checkm2_db "<path to directory with>/CheckM2_database/uniref100.KO.1.dmnd" --gtdbtk_db "<path to directory with>/release22<your downloaded release>/" 
 ```
 
-Above, we have four unique sample ids in samples100.csv, therefore `--array_size 4`.
+Above, we have four unique sample ids in my_samples.csv, therefore `--array_size 4`.
+
+## Todo
+
+Further analyses are open-ended. The original idea was to integrate DRAM for metabolic characterisation. Still, since its 2nd version is going to be a Nextflow workflow itself, it's probably easier to run it separately using the final bins as input. The same holds for the virus identification workflow and the AMR workflow (nf-core/funcscan).
 

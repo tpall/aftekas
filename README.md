@@ -21,19 +21,7 @@ By default, *aftekas* uses the "*human-t2t-hla masked with 150mers for 985 FDA-A
 
 1. Download and setup CheckM2 database as instructed in [https://github.com/chklovski/CheckM2](https://github.com/chklovski/CheckM2).
 
-Edit [nextflow.config](nextflow.config):
-
-```bash
-checkm2_db = "<path to directory with>/CheckM2_database/uniref100.KO.1.dmnd"
-```
-
-2. Download and setup GTDBTk database as instructed in [https://ecogenomics.github.io/GTDBTk/installing/index.html](https://ecogenomics.github.io/GTDBTk/installing/index.html).
-
-Edit [nextflow.config](nextflow.config):
-
-```bash
-gtdbtk_db = "<path to directory with>/release22<your downloaded release>/"
-```
+1. Download and setup GTDBTk database as instructed in [https://ecogenomics.github.io/GTDBTk/installing/index.html](https://ecogenomics.github.io/GTDBTk/installing/index.html).
 
 ### Set up sample data
 

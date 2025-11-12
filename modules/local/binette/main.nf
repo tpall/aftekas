@@ -1,7 +1,7 @@
 
 process BINETTE {
     tag "$meta.id"
-    label 'process_single'
+    label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
     container "community.wave.seqera.io/library/checkm2_diamond_pip_binette:d2744f87fb84aab7"

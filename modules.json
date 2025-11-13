@@ -158,13 +158,6 @@
                         "installed_by": [
                             "modules"
                         ]
-                    },
-                    "vamb/bin": {
-                        "branch": "master",
-                        "git_sha": "38697a933bef7041bb935c9b8374d9948ce6c794",
-                        "installed_by": [
-                            "modules"
-                        ]
                     }
                 }
             }

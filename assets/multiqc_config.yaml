@@ -18,6 +18,9 @@ run_modules:
   - fastp
   - custom_content
   - bowtie2
+  - quast
+  - checkm2
+  - gtdbtk
 
 ## Module order
 top_modules:
@@ -42,7 +45,13 @@ top_modules:
         removed."
       path_filters:
         - "*_host_removed.bowtie2.log"
-
+  - "quast":
+      name: "QUAST: assembly"
+      info: "Assembly statistics of raw assemblies."
+      path_filters:
+        - "*.tsv"
+  - "checkm2"
+  - "gtdbtk"
 
 custom_data:
   host_removal:
@@ -60,6 +69,8 @@ custom_data:
 sp:
   host_removal:
     fn: "host_removal_metrics.tsv"
+  quast:
+    fn: "report*.tsv"
 
 
 ## File name cleaning
@@ -83,7 +94,16 @@ table_columns_visible:
     after_filtering_gc_content: false
     pct_surviving: true
     pct_adapter: true
+  "QUAST: assembly":
+    N75: true
+    L50: true
+    L75: true
+    "Largest contig": true
+    "Total length": true
+    N50: true
   "Bowtie2: assembly": false
+  "CheckM2": false
+  "GTDB-Tk": false
 
 table_columns_placement:
   "FastQC: raw reads":
@@ -112,6 +132,15 @@ table_columns_placement:
     overall_alignment_rate: 5000
   "Bowtie2: host removal":
     overall_alignment_rate: 6000
+  "QUAST: assembly":
+    "N50": 10000
+    "Total length": 11000
+  CheckM2:
+    "Completeness": 14000
+    "Contamination": 14100
+    "Genome_Size": 14200
+  "GTDB-Tk":
+    "classification": 24000
 
 table_columns_name:
   "FastQC: raw reads":

@@ -21,7 +21,7 @@ By default, *aftekas* uses the "*human-t2t-hla masked with 150mers for 985 FDA-A
 
 1. Download and setup CheckM2 database as instructed in [https://github.com/chklovski/CheckM2](https://github.com/chklovski/CheckM2).
 
-1. Download and setup GTDBTk database as instructed in [https://ecogenomics.github.io/GTDBTk/installing/index.html](https://ecogenomics.github.io/GTDBTk/installing/index.html).
+1. Download and setup GTDBTk database (release 226, recommended) as instructed in [https://ecogenomics.github.io/GTDBTk/installing/index.html](https://ecogenomics.github.io/GTDBTk/installing/index.html).
 
 ### Set up sample data
 
@@ -45,13 +45,13 @@ nextflow pull tpall/aftekas
 Locally, this workflow can be run using docker, assuming that java, nextflow and docker are running:
 
 ```bash
-nextflow run tpall/aftekas --input my_samples.csv --checkm2_db "<path to directory with>/CheckM2_database/uniref100.KO.1.dmnd" --gtdbtk_db "<path to directory with>/release22<your downloaded release>/" 
+nextflow run tpall/aftekas --input my_samples.csv --checkm2_db "<path to directory with>/CheckM2_database/uniref100.KO.1.dmnd" --gtdbtk_db "<path to directory with>/release226" --fastp_dedup --fastp_trim_polyg
 ```
 
 In a slurm cluster: activate required software (java, nextflow, singularity) and run e.g.:
 
 ```bash
-nextflow run tpall/aftekas -profile cluster --input my_samples.csv --array_size 4 --queue main -resume --checkm2_db "<path to directory with>/CheckM2_database/uniref100.KO.1.dmnd" --gtdbtk_db "<path to directory with>/release22<your downloaded release>/" 
+nextflow run tpall/aftekas -profile cluster --input my_samples.csv --array_size 4 --queue main -resume --checkm2_db "<path to directory with>/CheckM2_database/uniref100.KO.1.dmnd" --gtdbtk_db "<path to directory with>/release226" --fastp_dedup --fastp_trim_polyg 
 ```
 
 Above, we have four unique sample ids in my_samples.csv, therefore `--array_size 4`.

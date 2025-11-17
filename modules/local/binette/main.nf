@@ -55,7 +55,9 @@ process BINETTE {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        Binette: \$(binette --version |& sed '1!d ; s/Binette //')
+        binette: \$(binette --version |& sed '1!d ; s/Binette //')
+        diamond: \$(diamond --version | sed 's/diamond version //')
+        checkm2: \$(checkm2 --version)
     END_VERSIONS
     """
 

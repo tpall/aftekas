@@ -7,6 +7,7 @@ include { SETUP } from './subworkflows/setup.nf'
 include { PREPROCESS } from './subworkflows/preprocess.nf'
 include { CAT_FASTQ } from './modules/nf-core/cat/fastq/main' 
 include { ASSEMBLY } from './subworkflows/assembly.nf'
+include { METAQUAST } from './modules/local/metaquast/main'  
 include { BINNING } from './subworkflows/binning.nf'
 include { BINREFINE } from './subworkflows/binrefine.nf'
 include { TAXONOMY } from './subworkflows/taxonomy.nf'
@@ -73,7 +74,12 @@ workflow {
         .set { ch_contigs }
     ch_covstats = ASSEMBLY.out.covstats
 
-    // // Binning of contigs into MAGs
+    // Assess assembly quality with QUAST
+    METAQUAST( ch_contigs.collect { _meta, contigs -> [ contigs ] } )
+    ch_multiqc = ch_multiqc.mix(METAQUAST.out.report)
+    ch_versions = ch_versions.mix(METAQUAST.out.versions)
+
+    // Binning of contigs into MAGs
     BINNING(ch_assemblies, ch_bambais)
     ch_versions = ch_versions.mix(BINNING.out.versions)
     ch_contigs_to_bin = BINNING.out.contigs2bin
@@ -83,17 +89,18 @@ workflow {
     BINREFINE(ch_contigs, ch_contigs_to_bin)
     ch_versions = ch_versions.mix(BINREFINE.out.versions)
     ch_final_bins = BINREFINE.out.refined_bins
+    ch_multiqc = ch_multiqc.mix(BINREFINE.out.refined_bins_qc.collect { it -> it[1] }.ifEmpty([]))
 
+    // Taxonomic classification of final bins
     TAXONOMY(ch_final_bins)
     ch_versions = ch_versions.mix(TAXONOMY.out.versions)
 
     // Generate MultiQC report
-    // ch_multiqc = ch_multiqc.mix(ch_input_bins_qc, ch_refined_bins_qc)
     ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
     MULTIQC(ch_multiqc.collect(), ch_multiqc_config, [], [], [], [])
     ch_versions = ch_versions.mix(MULTIQC.out.versions)
 
-    //Publish workflow outputs
+    // Publish workflow outputs
     publish:
     processed_reads = ch_processed_reads.map { meta, reads -> [ id: meta.id, fq1: reads[0], fq2: reads[1] ] }
     contigs = ch_contigs.map { meta, contigs -> [ id: meta.id, assembler: meta.assembler, fa: contigs ] }

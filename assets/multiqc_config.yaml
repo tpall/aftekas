@@ -16,11 +16,9 @@ data_format: "yaml"
 run_modules:
   - fastqc
   - fastp
-  - custom_content
   - bowtie2
   - quast
-  - checkm2
-  - gtdbtk
+  - custom_content
 
 ## Module order
 top_modules:
@@ -48,39 +46,28 @@ top_modules:
   - "quast":
       name: "QUAST: assembly"
       info: "Assembly statistics of raw assemblies."
-      path_filters:
-        - "*.tsv"
-  - "checkm2"
-  - "gtdbtk"
+  - "custom_content":
+      name: "CheckM2: final bins"
+      info: "Quality assessment of refined bins using CheckM2."
 
 custom_data:
-  host_removal:
+  final_bins_qc:
     file_format: "tsv"
-    section_name: "Bowtie 2: host read removal"
-    description: "Reads are mapped against the host reference sequence. Only reads
-      that do not align (concordantly) are kept for further analysis."
-    plot_type: "bargraph"
-    pconfig:
-      id: "host_removal_bargraph"
-      title: "Bowtie 2: reads mapped against host reference"
-      ylab: "# Reads"
+    section_name: "CheckM2: final bins"
+    description: "Assesses microbial genome quality using machine learning."
 
-## Sample name cleaning
 sp:
-  host_removal:
-    fn: "host_removal_metrics.tsv"
   quast:
     fn: "report*.tsv"
+  final_bins_qc:
+    fn: "*_final_bins_quality_reports.tsv"
 
-
-## File name cleaning
 extra_fn_clean_exts:
   - ".bowtie2"
   - "host_removed"
   - "phix_removed"
   - "_fastp"
 
-## General Stats customisation
 table_columns_visible:
   "FastQC: raw reads":
     avg_sequence_length: true
@@ -101,9 +88,6 @@ table_columns_visible:
     "Largest contig": true
     "Total length": true
     N50: true
-  "Bowtie2: assembly": false
-  "CheckM2": false
-  "GTDB-Tk": false
 
 table_columns_placement:
   "FastQC: raw reads":
@@ -135,12 +119,6 @@ table_columns_placement:
   "QUAST: assembly":
     "N50": 10000
     "Total length": 11000
-  CheckM2:
-    "Completeness": 14000
-    "Contamination": 14100
-    "Genome_Size": 14200
-  "GTDB-Tk":
-    "classification": 24000
 
 table_columns_name:
   "FastQC: raw reads":
@@ -161,12 +139,3 @@ table_columns_name:
     overall_alignment_rate: "% Aligned (PhiX)"
   "Bowtie2: host removal":
     overall_alignment_rate: "% Aligned (Host)"
-  "Bowtie2: assembly":
-    overall_alignment_rate: "% Aligned (Assem.)"
-
-custom_table_header_config:
-  general_stats_table:
-    "Total length":
-      hidden: true
-    N50:
-      hidden: true

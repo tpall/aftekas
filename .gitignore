@@ -4,4 +4,6 @@ work
 .nextflow.log*
 *log
 data
-
+README_files
+README.html
+settings.json

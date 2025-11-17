@@ -1,6 +1,5 @@
 
 include { MEGAHIT } from '../modules/nf-core/megahit/main' 
-include { METAQUAST } from '../modules/local/metaquast/main'  
 include { BBMAP_ALIGN as ALIGN } from '../modules/local/bbmap/align/main'
 include { SAMTOOLS_SORT } from '../modules/nf-core/samtools/sort/main'
 include { BBMAP_PILEUP as PILEUP } from '../modules/nf-core/bbmap/pileup/main'
@@ -23,7 +22,6 @@ workflow ASSEMBLY {
     .set { ch_normed_reads }
     MEGAHIT(ch_normed_reads)
     ch_versions = ch_versions.mix(MEGAHIT.out.versions)
-    ch_multiqc = ch_multiqc.mix(MEGAHIT.out.log)
     MEGAHIT.out.contigs
     .map { meta, contigs -> 
         def fmeta = [:]
@@ -36,11 +34,6 @@ workflow ASSEMBLY {
     // Fix contig headers by keeping only contig id
     FIX_FASTA_HEADER(ch_contigs_megahit)
     ch_contigs = FIX_FASTA_HEADER.out.fixed
-
-    // Assess assembly quality with QUAST
-    METAQUAST(ch_contigs)
-    ch_multiqc = ch_multiqc.mix(METAQUAST.out.report)
-    ch_versions = ch_versions.mix(METAQUAST.out.versions)
 
     // Map reads back to assembly to calculate coverage
     processed_reads.map { meta, reads -> [ meta.id, meta, reads ] }

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/tpall/aftekas/master/nextflow_schema.json",
+  "title": "tpall/aftekas pipeline parameters",
+  "description": "Minimal metagenomic analysis workflow using slurm array",
+  "type": "object",
+  "$defs": {
+    "input_output_options": {
+      "title": "Input/output options",
+      "type": "object",
+      "fa_icon": "fas fa-terminal",
+      "description": "Define where the pipeline should find input data and save output data.",
+      "required": ["input", "outdir"],
+      "properties": {
+        "input": {
+          "type": "string",
+          "format": "file-path",
+          "exists": true,
+          "schema": "assets/schema_input.json",
+          "mimetype": "text/csv",
+          "pattern": "^\\S+\\.csv$",
+          "description": "Path to comma-separated file containing information about the samples in the experiment.",
+          "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row.",
+          "fa_icon": "fas fa-file-csv",
+          "default": "samples.csv"
+        },
+        "outdir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "The output directory where the results will be saved. You have to use absolute paths to storage on Cloud infrastructure.",
+          "fa_icon": "fas fa-folder-open",
+          "default": "results"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/$defs/input_output_options"
+    }
+  ],
+  "properties": {
+    "container_engine": {
+      "type": "string",
+      "default": "docker"
+    },
+    "singularity_pull_docker_container": {
+      "type": "boolean",
+      "default": true
+    },
+    "enable_conda": {
+      "type": "boolean"
+    },
+    "reads_minlength": {
+      "type": "integer",
+      "default": 15
+    },
+    "fastp_save_trimmed_fail": {
+      "type": "boolean"
+    },
+    "fastp_qualified_quality": {
+      "type": "integer",
+      "default": 15
+    },
+    "fastp_cut_mean_quality": {
+      "type": "integer",
+      "default": 15
+    },
+    "fastp_trim_polyg": {
+      "type": "boolean"
+    },
+    "fastp_dedup": {
+      "type": "boolean"
+    },
+    "phix_accession": {
+      "type": "string",
+      "default": "NC_001422.1"
+    },
+    "host_index_url": {
+      "type": "string",
+      "default": "https://objectstorage.uk-london-1.oraclecloud.com/n/lrbvkel2wjot/b/human-genome-bucket/o/human-t2t-hla.argos-bacteria-985_rs-viral-202401_ml-phage-202401.tar"
+    },
+    "host_fasta_url": {
+      "type": "string",
+      "default": "https://objectstorage.uk-london-1.oraclecloud.com/n/lrbvkel2wjot/b/human-genome-bucket/o/human-t2t-hla.argos-bacteria-985_rs-viral-202401_ml-phage-202401.fa.gz"
+    },
+    "gtdbtk_db": {
+      "type": "string",
+      "default": "databases/release220/"
+    },
+    "checkm2_db": {
+      "type": "string",
+      "default": "databases/CheckM2_database/uniref100.KO.1.dmnd"
+    }
+  },
+  "required": ["phix_accession", "gtdbtk_db", "checkm2_db", "host_fasta_url"]
+}

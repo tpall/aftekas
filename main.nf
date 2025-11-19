@@ -1,8 +1,7 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-include { samplesheetToList } from 'plugin/nf-schema'
-include { INPUT_CHECK } from './subworkflows/input_check.nf'
+include { validateParameters; paramsSummaryLog; samplesheetToList } from 'plugin/nf-schema'
 include { SETUP } from './subworkflows/setup.nf'
 include { PREPROCESS } from './subworkflows/preprocess.nf'
 include { CAT_FASTQ } from './modules/nf-core/cat/fastq/main' 
@@ -17,7 +16,14 @@ include { MULTIQC } from './modules/nf-core/multiqc'
 workflow {
 
     main:
-    ch_input = file(params.input)
+    // Validate input parameters
+    validateParameters()
+
+    // Print summary of supplied parameters
+    log.info paramsSummaryLog(workflow)
+
+    // Create a new channel of metadata from a sample sheet passed to the pipeline through the --input parameter
+    ch_input = channel.fromList(samplesheetToList(params.input, "assets/schema_input.json"))
     ch_versions = channel.empty()
     ch_multiqc = channel.empty()
 
@@ -25,31 +31,27 @@ workflow {
     SETUP(params.phix_accession, params.host_fasta_url, params.host_index_url)
     ch_versions = ch_versions.mix(SETUP.out.versions)
 
-    INPUT_CHECK (
-        ch_input
-    )
-    .reads
-    .map {
-        meta, fastq ->
-            meta.id = meta.id.split('_')[0..-2].join('_')
-            [ meta, fastq ] }
-    .groupTuple(by: [0])
+    ch_input
+    .map { meta, fastq_1, fastq_2 -> 
+            if ( fastq_2 == [] ) { 
+                meta.single_end = true }
+            else { 
+                meta.single_end = false } 
+            return [ meta, fastq_1, fastq_2 ]
+        }
+    .groupTuple()
     .branch {
-        meta, fastq ->
-            single  : fastq.size() == 1
-                return [ meta, fastq.flatten() ]
-            multiple: fastq.size() > 1
-                return [ meta, fastq.flatten() ]
+        meta, fastq_1, fastq_2 ->
+            single  : fastq_1.size() == 1
+                return [ meta, fastq_1 + fastq_2 ]
+            multiple: fastq_1.size() > 1
+                return [ meta, fastq_1 + fastq_2 ]
     }
     .set { ch_fastq }
-    ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
-
-    // Concatenate FastQ files from same sample if required
-    CAT_FASTQ (
-        ch_fastq.multiple
-    )
-    .reads
+    
+    CAT_FASTQ (ch_fastq.multiple).reads
     .mix(ch_fastq.single)
+    .map { meta, reads -> [ meta, reads.findAll() ] }
     .set { ch_cat_fastq }
     ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 
@@ -59,7 +61,7 @@ workflow {
     ch_multiqc = ch_multiqc.mix(PREPROCESS.out.multiqc.collect { it -> it[1] }.ifEmpty([]))
     ch_processed_reads = PREPROCESS.out.processed_reads
     ch_normed_reads = PREPROCESS.out.normed_reads
-
+    
     // Assemble and assess assembly
     ASSEMBLY(
         ch_normed_reads,
@@ -101,8 +103,15 @@ workflow {
     ch_versions = ch_versions.mix(MULTIQC.out.versions)
 
     // Publish workflow outputs
+
     publish:
-    processed_reads = ch_processed_reads.map { meta, reads -> [ id: meta.id, fq1: reads[0], fq2: reads[1] ] }
+    processed_reads = ch_processed_reads
+    .map { meta, reads -> 
+        if ( meta.single_end ) { 
+            [ id: meta.id, fq1: reads ] }
+        else {
+            [ id: meta.id, fq1: reads[0], fq2: reads[1] ] 
+        }}
     contigs = ch_contigs.map { meta, contigs -> [ id: meta.id, assembler: meta.assembler, fa: contigs ] }
     covstats = ch_covstats.map { meta, stats -> [ id: meta.id, assembler: meta.assembler, tsv: stats ] }
     prodigal_faa = BINREFINE.out.prodigal_faa
@@ -119,10 +128,13 @@ workflow {
 output {
     processed_reads {
         path { reads -> 
+            if ( reads.fq2 == null ) {
+                reads.fq1 >> "processed_reads/${reads.id}_processed.fq.gz"
+            } else {
             reads.fq1 >> "processed_reads/${reads.id}_processed_1.fq.gz"
             reads.fq2 >> "processed_reads/${reads.id}_processed_2.fq.gz"
             }
-    }
+    }}
     contigs {
         path { contigs -> contigs.fa >> "assembly/contigs/${contigs.assembler}_${contigs.id}_contigs.fa.gz" }
     }

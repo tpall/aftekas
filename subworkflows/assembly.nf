@@ -17,8 +17,11 @@ workflow ASSEMBLY {
     // Assemble reads with MEGAHIT
     normed_reads
     .map { meta, reads -> 
-        return [ meta, reads[0], reads[1] ]
-    }
+        if ( meta.single_end ) { 
+            [ meta, reads, [] ] }
+        else {
+            [ meta, reads[0], reads[1] ]
+        }}
     .set { ch_normed_reads }
     MEGAHIT(ch_normed_reads)
     ch_versions = ch_versions.mix(MEGAHIT.out.versions)

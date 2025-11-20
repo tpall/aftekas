@@ -31,6 +31,7 @@ workflow BINREFINE {
     emit:
     refined_bins = ch_refined_bins
     refined_bins_qc = ch_refined_bins_qc
+    contig_to_bin = BINETTE.out.contig_to_bin
     input_bins_qc = ch_input_bins_qc
     prodigal_faa = ch_prodigal_faa
     versions = ch_versions

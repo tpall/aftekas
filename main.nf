@@ -119,6 +119,7 @@ workflow {
     binning_results_qc = BINREFINE.out.input_bins_qc.map { _meta, file -> [ file ]}.flatten()
     final_bins = ch_final_bins
     final_bins_qc = BINREFINE.out.refined_bins_qc
+    final_contig_to_bin = BINREFINE.out.contig_to_bin
     tax_summary = TAXONOMY.out.tax_summary
     tax_tree = TAXONOMY.out.tax_tree
     multiqc_report = MULTIQC.out.report
@@ -149,6 +150,9 @@ output {
     }
     binning_results_qc {
          path  { filename -> filename >> "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv"}
+    }
+    final_contig_to_bin {
+         path  { filename -> filename >> "binning/contig_to_bin/${filename.baseName.tokenize('.')[1]}_contig_to_bin.tsv"}
     }
     final_bins {
         path "binrefine/"

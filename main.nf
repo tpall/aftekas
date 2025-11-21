@@ -102,9 +102,6 @@ workflow {
     MULTIQC(ch_multiqc.collect(), ch_multiqc_config, [], [], [], [])
     ch_versions = ch_versions.mix(MULTIQC.out.versions)
 
-    BINREFINE.out.contig_to_bin
-    .view()
-
     // Publish workflow outputs
     publish:
     processed_reads = ch_processed_reads
@@ -154,7 +151,7 @@ output {
          path  { filename -> filename >> "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv"}
     }
     final_contig_to_bin {
-         path  { filename -> filename >> "binning/contig_to_bin/${filename.baseName.tokenize('.')[1]}_contig_to_bin.tsv"}
+         path  { filename -> filename >> "binning/contig_to_bin/${filename.baseName.tokenize('_')[1]}_contig_to_bin.tsv"}
     }
     final_bins {
         path "binrefine/"
@@ -175,4 +172,3 @@ output {
         path "."
     }
 }
-

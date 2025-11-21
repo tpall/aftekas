@@ -91,6 +91,7 @@ workflow {
     BINREFINE(ch_contigs, ch_contigs_to_bin)
     ch_versions = ch_versions.mix(BINREFINE.out.versions)
     ch_final_bins = BINREFINE.out.refined_bins
+    ch_contig_to_bin = BINREFINE.out.contig_to_bin
     ch_multiqc = ch_multiqc.mix(BINREFINE.out.refined_bins_qc.collect { it -> it[1] }.ifEmpty([]))
 
     // Taxonomic classification of final bins
@@ -118,7 +119,7 @@ workflow {
     binning_results_qc = BINREFINE.out.input_bins_qc.map { _meta, file -> [ file ]}.flatten()
     final_bins = ch_final_bins
     final_bins_qc = BINREFINE.out.refined_bins_qc
-    final_contig_to_bin = BINREFINE.out.contig_to_bin
+    final_contig_to_bin = ch_contig_to_bin.map { meta, contig_to_bin -> [ id: meta.id, mapping: contig_to_bin ] }
     tax_summary = TAXONOMY.out.tax_summary
     tax_tree = TAXONOMY.out.tax_tree
     multiqc_report = MULTIQC.out.report
@@ -151,7 +152,7 @@ output {
          path  { filename -> filename >> "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv"}
     }
     final_contig_to_bin {
-         path  { filename -> filename >> "binning/contig_to_bin/${filename.baseName.tokenize('_')[1]}_contig_to_bin.tsv"}
+         path  { contig_to_bin -> contig_to_bin.mapping >> "binning/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv"}
     }
     final_bins {
         path "binrefine/"

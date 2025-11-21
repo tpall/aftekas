@@ -102,8 +102,10 @@ workflow {
     MULTIQC(ch_multiqc.collect(), ch_multiqc_config, [], [], [], [])
     ch_versions = ch_versions.mix(MULTIQC.out.versions)
 
-    // Publish workflow outputs
+    BINREFINE.out.contig_to_bin
+    .view()
 
+    // Publish workflow outputs
     publish:
     processed_reads = ch_processed_reads
     .map { meta, reads -> 

@@ -9,6 +9,7 @@ workflow SETUP {
     
     take:
     phix_accession   // [phix accession]
+    phix_reference   // [phix fasta path/url] (optional)
     host_fasta_url   // [host index path/url]
     host_index_url  // [host index path/url] (optional)
 
@@ -16,13 +17,20 @@ workflow SETUP {
     ch_versions = channel.empty()
 
     // Download and build PhiX index
+    if ( phix_reference ) {
+        channel.fromPath(phix_reference)
+            .map { url -> tuple( [ id : url.baseName ], url ) }
+            .set { ch_phix_fasta }
+        ch_versions = ch_versions.mix( channel.of( tuple( 'phix_reference', phix_reference ) ) )
+    } else {
     channel.from(phix_accession)
         .map { v -> tuple( [ id: 'phix' ], v ) }
         .set { ch_phix_accession }   
     GET_PHIX_GENOME(ch_phix_accession)
     ch_phix_fasta = GET_PHIX_GENOME.out.fasta
     ch_versions = ch_versions.mix(GET_PHIX_GENOME.out.versions)
-
+    }
+    
     BUILD_PHIX_INDEX(ch_phix_fasta)
     ch_phix_index = BUILD_PHIX_INDEX.out.index
     ch_versions = ch_versions.mix(BUILD_PHIX_INDEX.out.versions)

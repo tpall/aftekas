@@ -28,7 +28,7 @@ workflow {
     ch_multiqc = channel.empty()
 
     // Download and index host genome and phiX genome
-    SETUP(params.phix_accession, params.host_fasta_url, params.host_index_url)
+    SETUP(params.phix_accession, params.phix_reference, params.host_fasta_url, params.host_index_url)
     ch_versions = ch_versions.mix(SETUP.out.versions)
 
     ch_input

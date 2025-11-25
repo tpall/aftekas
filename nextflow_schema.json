@@ -76,6 +76,10 @@
       "type": "string",
       "default": "NC_001422.1"
     },
+    "phix_reference": {
+      "type": "string",
+      "default": null
+    },
     "host_index_url": {
       "type": "string",
       "default": "https://objectstorage.uk-london-1.oraclecloud.com/n/lrbvkel2wjot/b/human-genome-bucket/o/human-t2t-hla.argos-bacteria-985_rs-viral-202401_ml-phage-202401.tar"

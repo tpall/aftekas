@@ -12,7 +12,7 @@ workflow TAXONOMY {
     final_bins
     .set { ch_bins }
 
-    CLASSIFY(ch_bins, params.gtdbtk_db, false)
+    CLASSIFY(ch_bins, params.gtdbtk_db, params.use_pplacer_scratch_dir)
     ch_tax_summary = CLASSIFY.out.summary
     ch_tax_tree = CLASSIFY.out.tree
     ch_versions = CLASSIFY.out.versions

@@ -3,9 +3,7 @@ process GTDBTK_CLASSIFYWF {
     label 'process_high_memory'
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/gtdbtk:2.5.2--pyh1f0d9b5_0':
-        'quay.io/biocontainers/gtdbtk:2.5.2--pyh1f0d9b5_0' }"
+    container "ecogenomic/gtdbtk:2.4.1"
 
     input:
     tuple val(meta), path(bins)

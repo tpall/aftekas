@@ -152,7 +152,7 @@ output {
          path  { filename -> filename >> "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv"}
     }
     final_contig_to_bin {
-         path  { contig_to_bin -> contig_to_bin.mapping >> "binning/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv"}
+         path  { contig_to_bin -> contig_to_bin.mapping >> "binrefine/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv"}
     }
     final_bins {
         path "binrefine/"

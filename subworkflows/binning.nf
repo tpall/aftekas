@@ -63,28 +63,20 @@ workflow BINNING {
     ch_vamb_binned = VAMB_BIN.out.bins
     ch_versions = ch_versions.mix(VAMB_BIN.out.versions)
 
-    // Merge binning results, ensure that all binners output lists of bins
+    // Merge binning results. Using mix + groupTuple instead of chained inner joins
+    // so that samples with one or more failed binners still flow through with the
+    // bins from the binners that did succeed.
     ch_metabat2_binned
+    .mix(ch_maxbin2_binned)
+    .mix(ch_concoct_binned)
+    .mix(ch_vamb_binned)
     .map { meta, bins -> [ meta.id, bins ] }
-    .join ( ch_maxbin2_binned
-        .map { meta, bins -> [ meta.id, bins ] },
-        by: 0
-        )
-    .map { id, bins_metabat2, bins_maxbin2 -> [ id, [bins_metabat2] + [bins_maxbin2] ] }
-    .join ( ch_concoct_binned
-        .map { meta, bins -> [ meta.id, bins ] },
-        by: 0
-        )
-    .map { id, bins_prev, bins_concoct -> [ id, [bins_prev] + [bins_concoct] ] }
-    .join ( ch_vamb_binned
-        .map { meta, bins -> [ meta.id, bins ] },
-        by: 0
-        )
-    .map { id, bins_prev, bins_vamb -> [ id, [bins_prev] + [bins_vamb] ] }  
-    .map { id, bins_list -> 
-            def fmeta = [:]
-                fmeta.id = id
-            return [ fmeta, bins_list.flatten() ] }
+    .groupTuple()
+    .map { id, bins_list ->
+        def fmeta = [:]
+        fmeta.id = id
+        return [ fmeta, bins_list.flatten() ]
+    }
     .set { ch_binning_results }
 
     CONTIG_TO_BIN(ch_binning_results, "Binette")

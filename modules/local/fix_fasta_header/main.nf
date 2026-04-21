@@ -33,9 +33,9 @@ process FIX_FASTA_HEADER {
         $args
 
     if zcat -f ${output} | grep -q '^>'; then
-        echo passed > ${output}.check
+        echo passed > ${meta.id}.check
     else
-        echo failed > ${output}.check
+        echo failed > ${meta.id}.check
     fi
 
     cat <<-END_VERSIONS > versions.yml

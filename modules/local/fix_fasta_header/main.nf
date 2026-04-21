@@ -12,6 +12,7 @@ process FIX_FASTA_HEADER {
 
     output:
     tuple val(meta), path("*fixed*"), emit: fixed
+    tuple val(meta), path("*.check"), emit: check
     path "versions.yml", emit: versions
 
     when:
@@ -30,6 +31,12 @@ process FIX_FASTA_HEADER {
         out=${output} \\
         trd=t \\
         $args
+
+    if zcat -f ${output} | grep -q '^>'; then
+        echo passed > ${output}.check
+    else
+        echo failed > ${output}.check
+    fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

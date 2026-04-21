@@ -36,7 +36,17 @@ workflow ASSEMBLY {
 
     // Fix contig headers by keeping only contig id
     FIX_FASTA_HEADER(ch_contigs_megahit)
-    ch_contigs = FIX_FASTA_HEADER.out.fixed
+
+    // Drop samples whose assembly is empty so they don't break BBMap indexing downstream
+    FIX_FASTA_HEADER.out.fixed
+    .join(FIX_FASTA_HEADER.out.check)
+    .filter { meta, _contigs, check ->
+        def passed = check.text.contains("passed")
+        if (!passed) log.warn "ASSEMBLY: skipping ${meta.id} -- MEGAHIT produced empty assembly"
+        passed
+    }
+    .map { meta, contigs, _check -> [ meta, contigs ] }
+    .set { ch_contigs }
 
     // Map reads back to assembly to calculate coverage
     processed_reads.map { meta, reads -> [ meta.id, meta, reads ] }

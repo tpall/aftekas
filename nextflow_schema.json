@@ -88,6 +88,24 @@
     "checkm2_db": {
       "type": "string",
       "default": "databases/CheckM2_database/uniref100.KO.1.dmnd"
+    },
+    "pplacer_cpus": {
+      "type": "integer",
+      "default": 1,
+      "description": "Number of CPUs for GTDB-Tk pplacer step."
+    },
+    "use_pplacer_scratch_dir": {
+      "type": "boolean",
+      "default": false,
+      "description": "Write pplacer scratch to disk to reduce memory usage (slower)."
+    },
+    "array_size": {
+      "type": "integer",
+      "description": "Slurm array size used by PREPROCESS/ASSEMBLY/BINNING/BINREFINE/TAXONOMY processes."
+    },
+    "queue": {
+      "type": "string",
+      "description": "Slurm queue name. Defaults to 'main' when unset."
     }
   },
   "required": ["phix_accession", "host_fasta_url"]

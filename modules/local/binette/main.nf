@@ -32,6 +32,8 @@ process BINETTE {
     def prots = proteins ? "-p ${proteins}" : ""
 
     """
+    shopt -s nullglob
+
     binette \\
         $args \\
         -c $contigs \\

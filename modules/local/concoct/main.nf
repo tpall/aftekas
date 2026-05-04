@@ -63,7 +63,7 @@ process CONCOCT {
 
     stub:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}_args.txt
     touch ${prefix}_clustering_gt1000.csv

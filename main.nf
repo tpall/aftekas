@@ -106,12 +106,12 @@ workflow {
     // Publish workflow outputs
     publish:
     processed_reads = ch_processed_reads
-    .map { meta, reads -> 
-        if ( meta.single_end ) { 
-            [ id: meta.id, fq1: reads ] }
-        else {
-            [ id: meta.id, fq1: reads[0], fq2: reads[1] ] 
-        }}
+    .flatMap { meta, reads ->
+        meta.single_end
+            ? [ [ id: meta.id, fq: reads, suffix: '' ] ]
+            : [ [ id: meta.id, fq: reads[0], suffix: '_1' ],
+                [ id: meta.id, fq: reads[1], suffix: '_2' ] ]
+    }
     contigs = ch_contigs.map { meta, contigs -> [ id: meta.id, assembler: meta.assembler, fa: contigs ] }
     covstats = ch_covstats.map { meta, stats -> [ id: meta.id, assembler: meta.assembler, tsv: stats ] }
     prodigal_faa = BINREFINE.out.prodigal_faa
@@ -128,20 +128,13 @@ workflow {
 
 output {
     processed_reads {
-        path { reads ->
-            if ( reads.fq2 == null ) {
-                publish(reads.fq1, "processed_reads/${reads.id}_processed.fq.gz")
-            } else {
-                publish(reads.fq1, "processed_reads/${reads.id}_processed_1.fq.gz")
-                publish(reads.fq2, "processed_reads/${reads.id}_processed_2.fq.gz")
-            }
-        }
+        path { reads -> reads.fq >> "processed_reads/${reads.id}_processed${reads.suffix}.fq.gz" }
     }
     contigs {
-        path { contigs -> publish(contigs.fa, "assembly/contigs/${contigs.assembler}_${contigs.id}_contigs.fa.gz") }
+        path { contigs -> contigs.fa >> "assembly/contigs/${contigs.assembler}_${contigs.id}_contigs.fa.gz" }
     }
     covstats {
-        path { covstats -> publish(covstats.tsv, "assembly/covstats/${covstats.assembler}_${covstats.id}_contigs_covstats.tsv") }
+        path { covstats -> covstats.tsv >> "assembly/covstats/${covstats.assembler}_${covstats.id}_contigs_covstats.tsv" }
     }
     prodigal_faa {
         path "assembly/prodigal/"
@@ -150,10 +143,10 @@ output {
         path "binning/bins/"
     }
     binning_results_qc {
-        path { filename -> publish(filename, "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv") }
+        path { filename -> filename >> "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv" }
     }
     final_contig_to_bin {
-        path { contig_to_bin -> publish(contig_to_bin.mapping, "binrefine/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv") }
+        path { contig_to_bin -> contig_to_bin.mapping >> "binrefine/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv" }
     }
     final_bins {
         path "binrefine/"

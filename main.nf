@@ -128,19 +128,20 @@ workflow {
 
 output {
     processed_reads {
-        path { reads -> 
+        path { reads ->
             if ( reads.fq2 == null ) {
-                reads.fq1 >> "processed_reads/${reads.id}_processed.fq.gz"
+                publish(reads.fq1, "processed_reads/${reads.id}_processed.fq.gz")
             } else {
-            reads.fq1 >> "processed_reads/${reads.id}_processed_1.fq.gz"
-            reads.fq2 >> "processed_reads/${reads.id}_processed_2.fq.gz"
+                publish(reads.fq1, "processed_reads/${reads.id}_processed_1.fq.gz")
+                publish(reads.fq2, "processed_reads/${reads.id}_processed_2.fq.gz")
             }
-    }}
+        }
+    }
     contigs {
-        path { contigs -> contigs.fa >> "assembly/contigs/${contigs.assembler}_${contigs.id}_contigs.fa.gz" }
+        path { contigs -> publish(contigs.fa, "assembly/contigs/${contigs.assembler}_${contigs.id}_contigs.fa.gz") }
     }
     covstats {
-        path { covstats -> covstats.tsv >> "assembly/covstats/${covstats.assembler}_${covstats.id}_contigs_covstats.tsv" }
+        path { covstats -> publish(covstats.tsv, "assembly/covstats/${covstats.assembler}_${covstats.id}_contigs_covstats.tsv") }
     }
     prodigal_faa {
         path "assembly/prodigal/"
@@ -149,10 +150,10 @@ output {
         path "binning/bins/"
     }
     binning_results_qc {
-         path  { filename -> filename >> "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv"}
+        path { filename -> publish(filename, "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv") }
     }
     final_contig_to_bin {
-         path  { contig_to_bin -> contig_to_bin.mapping >> "binrefine/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv"}
+        path { contig_to_bin -> publish(contig_to_bin.mapping, "binrefine/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv") }
     }
     final_bins {
         path "binrefine/"

@@ -43,9 +43,9 @@ workflow {
     .branch {
         meta, fastq_1, fastq_2 ->
             single  : fastq_1.size() == 1
-                return [ meta, fastq_1 + fastq_2 ]
+                return [ meta, [fastq_1, fastq_2].transpose().flatten() ]
             multiple: fastq_1.size() > 1
-                return [ meta, fastq_1 + fastq_2 ]
+                return [ meta, [fastq_1, fastq_2].transpose().flatten() ]
     }
     .set { ch_fastq }
     

@@ -51,7 +51,7 @@ workflow {
     
     CAT_FASTQ (ch_fastq.multiple).reads
     .mix(ch_fastq.single)
-    .map { meta, reads -> [ meta, reads.findAll() ] }
+    .map { meta, reads -> [ meta, (reads instanceof List ? reads : [reads]).findAll() ] }
     .set { ch_cat_fastq }
     ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 

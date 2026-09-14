@@ -10,7 +10,9 @@
       "type": "object",
       "fa_icon": "fas fa-terminal",
       "description": "Define where the pipeline should find input data and save output data.",
-      "required": ["input"],
+      "required": [
+        "input"
+      ],
       "properties": {
         "input": {
           "type": "string",
@@ -25,11 +27,52 @@
           "default": "samples.csv"
         }
       }
+    },
+    "read_profiling_options": {
+      "title": "Read-based profiling options",
+      "type": "object",
+      "fa_icon": "fas fa-chart-bar",
+      "description": "Optional sylph profiling of the cleaned reads against GTDB, with or without the assembly branch.",
+      "properties": {
+        "profile_reads": {
+          "type": "boolean",
+          "default": false,
+          "description": "Profile the host/phiX-removed reads with sylph against a GTDB database.",
+          "help_text": "Adds results/profile/: sylph's genome-level table, one .sylphmpa taxonomic profile per sample and clade x sample matrices of relative and sequence abundance. Independent of --skip_assembly."
+        },
+        "skip_assembly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Stop after preprocessing (and read profiling, if enabled); no assembly, binning, bin refinement or GTDB-Tk.",
+          "help_text": "With --profile_reads this is the read-only taxonomic snapshot. Without it only QC, trimming and host removal run."
+        },
+        "sylph_db": {
+          "type": "string",
+          "format": "file-path",
+          "exists": true,
+          "description": "sylph GTDB database (.syl2db preferred, .syldb accepted). Required with --profile_reads.",
+          "help_text": "Pre-built: https://sylph-docs.github.io/pre%E2%80%90built-databases/ ; gtdb-r226-c200-dbv2.syl2db (14 GB) matches the GTDB-Tk r226 data this workflow uses."
+        },
+        "sylph_tax_dir": {
+          "type": "string",
+          "format": "directory-path",
+          "exists": true,
+          "description": "Directory written by `sylph-tax download --download-to <dir>`. Omit to download (~50 MB) inside the task."
+        },
+        "sylph_tax_id": {
+          "type": "string",
+          "default": "GTDB_r226",
+          "description": "sylph-tax taxonomy identifier; must match the GTDB release sylph_db was built from (GTDB_r226, GTDB_r232, ...)."
+        }
+      }
     }
   },
   "allOf": [
     {
       "$ref": "#/$defs/input_output_options"
+    },
+    {
+      "$ref": "#/$defs/read_profiling_options"
     }
   ],
   "properties": {
@@ -108,5 +151,8 @@
       "description": "Slurm queue name. Defaults to 'main' when unset."
     }
   },
-  "required": ["phix_accession", "host_fasta_url"]
+  "required": [
+    "phix_accession",
+    "host_fasta_url"
+  ]
 }

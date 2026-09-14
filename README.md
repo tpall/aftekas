@@ -23,6 +23,13 @@ By default, *aftekas* uses the "*human-t2t-hla masked with 150mers for 985 FDA-A
 
 1. Download and setup GTDBTk database (release 226, recommended) as instructed in [https://ecogenomics.github.io/GTDBTk/installing/index.html](https://ecogenomics.github.io/GTDBTk/installing/index.html).
 
+1. Optional, for read-based profiling (`--profile_reads`): download a sylph GTDB database, ideally the same release as GTDB-Tk so read-level and genome-level taxonomy agree, and the sylph-tax metadata.
+
+   ```bash
+   wget -P databases/sylph https://storage.googleapis.com/sylph-stuff/gtdb-r226-c200-dbv2.syl2db   # 14 GB; needs sylph >= 1.0
+   mkdir -p databases/sylph-tax && sylph-tax download --download-to databases/sylph-tax          # ~50 MB, or let the task fetch it
+   ```
+
 ### Set up sample data
 
 Sample data file must have three columns: *sample*, *fastq_1*, *fastq_2*
@@ -55,6 +62,26 @@ nextflow run tpall/aftekas -profile cluster --input my_samples.csv --array_size 
 ```
 
 Above, we have four unique sample ids in my_samples.csv, therefore `--array_size 4`.
+
+### Read-based profiling and the read-only snapshot
+
+Two independent switches:
+
+| flag | default | effect |
+|---|---|---|
+| `--profile_reads` | off | sketch the cleaned reads with [sylph](https://sylph-docs.github.io/) and profile them against `--sylph_db` (GTDB); [sylph-tax](https://sylph-docs.github.io/sylph-tax/) adds lineages (`--sylph_tax_id`, default `GTDB_r226`) |
+| `--skip_assembly` | off | stop after preprocessing: no assembly, binning, refinement or GTDB-Tk |
+
+`--profile_reads` alone is a MAG run that also reports what binning did not recover. Both together is the read-only taxonomic snapshot, which needs no assembly-grade memory:
+
+```bash
+nextflow run tpall/aftekas --input my_samples.csv --profile_reads --skip_assembly \
+    --sylph_db databases/sylph/gtdb-r226-c200-dbv2.syl2db --sylph_tax_dir databases/sylph-tax
+```
+
+Output under `results/profile/`: `sylph_profile.tsv` (genome level: ANI, effective coverage, taxonomic and sequence abundance per sample), `taxprof/<sample>.sylphmpa` (MetaPhlAn-style lineage profiles), and `sylph_relative_abundance.tsv` / `sylph_sequence_abundance.tsv` (clade x sample matrices). Profiling reads the host/phiX-removed reads, not the BBNorm-normalised ones, because normalisation flattens the coverage the abundances are estimated from.
+
+Tag client runs for accounting on a metered cluster with `-process.clusterOptions '--wckey=<client>'`.
 
 ## Todo
 

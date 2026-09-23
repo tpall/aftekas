@@ -12,6 +12,12 @@ process GALAH_CLUSTER {
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/galah:0.5.2--hfa8f182_0' :
         'quay.io/biocontainers/galah:0.5.2--hfa8f182_0' }"
+    // galah probes for fastANI by running `/usr/bin/which --tty-only fastANI`, by absolute path.
+    // The biocontainers image ships BusyBox which, which rejects that flag, so galah aborts although
+    // fastANI is present. --bird_which_shim binds a `which` that tolerates it. PATH does not help:
+    // the call is by absolute path.
+    containerOptions { params.bird_which_shim && workflow.containerEngine in ['singularity', 'apptainer']
+                       ? "--bind ${params.bird_which_shim}:/usr/bin/which" : '' }
 
     input:
     val(set_id)

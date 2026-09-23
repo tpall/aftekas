@@ -15,6 +15,9 @@ process COVERM_GENOME {
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/coverm:0.8.0--h750ce8b_0' :
         'quay.io/biocontainers/coverm:0.8.0--h750ce8b_0' }"
+    // Same bird_tool_utils dependency probe as galah: see modules/local/galah/main.nf.
+    containerOptions { params.bird_which_shim && workflow.containerEngine in ['singularity', 'apptainer']
+                       ? "--bind ${params.bird_which_shim}:/usr/bin/which" : '' }
 
     input:
     tuple val(meta), path(reads)
@@ -29,7 +32,8 @@ process COVERM_GENOME {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: '--min-read-percent-identity 95 --min-read-aligned-percent 75'
+    def args = task.ext.args ?:
+        '--min-read-percent-identity 95 --min-read-aligned-percent 75 --min-covered-fraction 0'
     def input_reads = meta.single_end ? "--single ${reads}" : "--coupled ${reads}"
     """
     coverm genome \\

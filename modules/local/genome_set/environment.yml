@@ -1,0 +1,5 @@
+name: genome_set
+channels:
+  - conda-forge
+dependencies:
+  - conda-forge::python=3.10

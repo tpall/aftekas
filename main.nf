@@ -11,6 +11,7 @@ include { BINNING } from './subworkflows/binning.nf'
 include { BINREFINE } from './subworkflows/binrefine.nf'
 include { TAXONOMY } from './subworkflows/taxonomy.nf'
 include { PROFILE } from './subworkflows/profile.nf'
+include { REFSET } from './subworkflows/refset.nf'
 include { MULTIQC } from './modules/nf-core/multiqc'
 
 // Defaulting workflow
@@ -150,6 +151,27 @@ workflow {
         ch_tax_tree           = TAXONOMY.out.tax_tree
     }
 
+    // Common reference set for a series: one versioned genome set, and abundances from mapping every
+    // sample's reads to it. Without --genome_set_id the run stays per-sample, as before.
+    ch_genome_set      = channel.empty()
+    ch_genome_members  = channel.empty()
+    ch_set_abundance   = channel.empty()
+    if (params.genome_set_id) {
+        if (params.skip_assembly) {
+            error "--genome_set_id needs the assembly branch: the set is built from refined MAGs"
+        }
+        REFSET(
+            ch_final_bins,
+            ch_final_bins_qc,
+            ch_processed_reads,
+            params.genome_set
+        )
+        ch_versions       = ch_versions.mix(REFSET.out.versions)
+        ch_genome_set     = REFSET.out.set_json
+        ch_genome_members = REFSET.out.members
+        ch_set_abundance  = REFSET.out.abundance
+    }
+
     // Generate MultiQC report
     ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
     MULTIQC(ch_multiqc.collect(), ch_multiqc_config, [], [], [], [])
@@ -178,6 +200,9 @@ workflow {
     sylph_taxprof = ch_sylph_taxprof
     sylph_relative_abundance = ch_sylph_relab
     sylph_sequence_abundance = ch_sylph_seqab
+    genome_set = ch_genome_set
+    genome_set_members = ch_genome_members
+    genome_set_abundance = ch_set_abundance.map { meta, tsv -> [ id: meta.id, tsv: tsv ] }
     multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
 }
@@ -227,6 +252,15 @@ output {
     }
     sylph_sequence_abundance {
         path "profile/"
+    }
+    genome_set {
+        path "genome_set/"
+    }
+    genome_set_members {
+        path "genome_set/"
+    }
+    genome_set_abundance {
+        path { ab -> ab.tsv >> "genome_set/abundance/${ab.id}.coverm.tsv" }
     }
     multiqc_report {
         path "."

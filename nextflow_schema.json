@@ -65,6 +65,31 @@
           "description": "sylph-tax taxonomy identifier; must match the GTDB release sylph_db was built from (GTDB_r226, GTDB_r232, ...)."
         }
       }
+    },
+    "reference_set_options": {
+      "title": "Common reference set (series runs)",
+      "type": "object",
+      "fa_icon": "fas fa-layer-group",
+      "description": "One versioned genome set for a client's sample series, so two samples can be compared genome by genome.",
+      "properties": {
+        "genome_set_id": {
+          "type": "string",
+          "description": "Client series id for the common reference set (e.g. CGS-PLANT-A). Set it to compare samples over time.",
+          "help_text": "With this set, refined MAGs of every sample are clustered into one versioned genome set and abundances come from mapping every sample's reads to that set, not from each sample's own assembly. Without it the run stays per-sample. See docs/design-common-reference-set.md."
+        },
+        "genome_set": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Previous genome-set version directory to extend. Omit to build version 1.",
+          "help_text": "The set grows: genomes that match an existing representative at the ANI threshold keep their id, new genomes get new ids and the version increases. A version that added genomes requires remapping the earlier samples."
+        },
+        "genome_set_ani": {
+          "type": "number",
+          "default": 95,
+          "description": "ANI threshold for clustering MAGs into one genome (species level).",
+          "help_text": "Changing this makes a new set id, not a new version: the clusters, and therefore the genome ids, are defined by it."
+        }
+      }
     }
   },
   "allOf": [
@@ -73,6 +98,9 @@
     },
     {
       "$ref": "#/$defs/read_profiling_options"
+    },
+    {
+      "$ref": "#/$defs/reference_set_options"
     }
   ],
   "properties": {

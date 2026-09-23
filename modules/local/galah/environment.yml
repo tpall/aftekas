@@ -1,0 +1,6 @@
+name: galah
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bioconda::galah=0.5.2

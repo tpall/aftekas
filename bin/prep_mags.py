@@ -6,9 +6,13 @@ Bin names collide between samples: every sample has a "bin_1". Clustering staged
 samples without renaming would merge two different genomes into one cluster member list, which is
 the one error the genome set exists to prevent. Stdlib only.
 """
-import argparse, csv, os, shutil, sys
+import argparse, csv, gzip, os, shutil, sys
 
+# Binette writes its refined bins gzipped, so a plain extension check finds nothing and this script
+# stops with "no MAG fasta" although the bins are right there. Both forms are accepted, and a
+# gzipped bin is written out uncompressed: galah reads the fasta directly.
 FASTA_EXT = ('.fa', '.fna', '.fasta')
+FASTA_GZ = tuple(e + '.gz' for e in FASTA_EXT)
 # Binette and CheckM2 both carry these, under different names
 COMPLETENESS = ('completeness', 'Completeness')
 CONTAMINATION = ('contamination', 'Contamination')
@@ -33,11 +37,18 @@ a = a.parse_args()
 os.makedirs(a.out, exist_ok=True)
 renamed = {}
 for f in sorted(os.listdir(a.bins)):
-    stem, ext = os.path.splitext(f)
-    if ext not in FASTA_EXT:
+    src = os.path.join(a.bins, f)
+    if f.endswith(FASTA_GZ):
+        stem = os.path.splitext(os.path.splitext(f)[0])[0]
+        new = f'{a.sample}__{stem}'
+        with gzip.open(src, 'rb') as fh, open(os.path.join(a.out, f'{new}.fa'), 'wb') as out:
+            shutil.copyfileobj(fh, out)
+    elif f.endswith(FASTA_EXT):
+        stem = os.path.splitext(f)[0]
+        new = f'{a.sample}__{stem}'
+        shutil.copyfile(src, os.path.join(a.out, f'{new}.fa'))
+    else:
         continue
-    new = f'{a.sample}__{stem}'
-    shutil.copyfile(os.path.join(a.bins, f), os.path.join(a.out, f'{new}.fa'))
     renamed[stem] = new
 if not renamed:
     sys.exit(f'!! {a.bins}: no MAG fasta for sample {a.sample}')

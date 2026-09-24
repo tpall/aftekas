@@ -88,6 +88,12 @@
           "default": 95,
           "description": "ANI threshold for clustering MAGs into one genome (species level).",
           "help_text": "Changing this makes a new set id, not a new version: the clusters, and therefore the genome ids, are defined by it."
+        },
+        "bird_which_shim": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Path to a `which` that tolerates --tty-only, bound over /usr/bin/which in the galah and CoverM containers.",
+          "help_text": "Both tools use bird_tool_utils, which probes for fastANI, skani and the mappers by calling /usr/bin/which --tty-only by absolute path. The biocontainers images ship BusyBox which, which rejects that flag, so the tools abort although the dependency is present. Without this the reference-set steps fail immediately."
         }
       }
     }

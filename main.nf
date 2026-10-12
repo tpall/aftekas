@@ -167,7 +167,9 @@ workflow {
             params.genome_set
         )
         ch_versions       = ch_versions.mix(REFSET.out.versions)
-        ch_genome_set     = REFSET.out.set_json
+        // The whole set directory, representatives included: the next sample of the series
+        // extends this exact directory (--genome_set), so it must be published, not left in work/.
+        ch_genome_set     = REFSET.out.set_dir
         ch_genome_members = REFSET.out.members
         ch_set_abundance  = REFSET.out.abundance
     }
@@ -201,7 +203,6 @@ workflow {
     sylph_relative_abundance = ch_sylph_relab
     sylph_sequence_abundance = ch_sylph_seqab
     genome_set = ch_genome_set
-    genome_set_members = ch_genome_members
     genome_set_abundance = ch_set_abundance.map { meta, tsv -> [ id: meta.id, tsv: tsv ] }
     multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
@@ -254,9 +255,6 @@ output {
         path "profile/"
     }
     genome_set {
-        path "genome_set/"
-    }
-    genome_set_members {
         path "genome_set/"
     }
     genome_set_abundance {

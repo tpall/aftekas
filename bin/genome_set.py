@@ -78,6 +78,7 @@ def main():
     p.add_argument('--previous', help='previous version directory (absent: this builds v1)')
     p.add_argument('--out', required=True)
     p.add_argument('--tool-versions', default='', help='versions.yml content to record in set.json')
+    p.add_argument('--quality', help='the CheckM2 report galah clustered with; writes quality.tsv for the representatives')
     a = p.parse_args()
 
     clusters = read_clusters(a.clusters)
@@ -152,6 +153,28 @@ def main():
         if not os.path.exists(src):
             sys.exit(f'!! representative {gid}: no fasta at {src}')
         shutil.copyfile(src, os.path.join(a.out, 'representatives', f'{gid}.fa'))
+
+    # quality.tsv: CheckM2 statistics of every representative, Name = its id. The next version hands
+    # this file to galah together with the new MAGs' rows, so a set can be extended from its own
+    # published directory. The input report holds this run's MAGs (Name = file name without .fa)
+    # and the previous version's quality.tsv (Name = id).
+    if a.quality:
+        with open(a.quality) as fh:
+            qhead = fh.readline().rstrip('\n').split('\t')
+            qrows = [dict(zip(qhead, l.rstrip('\n').split('\t'))) for l in fh if l.strip()]
+        by_name = {r['Name']: r for r in qrows}
+        missing = []
+        with open(os.path.join(a.out, 'quality.tsv'), 'w') as fh:
+            fh.write('\t'.join(qhead) + '\n')
+            for gid, fasta in sorted(set(reps)):
+                r = by_name.get(gid) or by_name.get(os.path.splitext(fasta)[0])
+                if r is None:
+                    missing.append(gid)
+                    continue
+                fh.write('\t'.join({**r, 'Name': gid}.get(c, '') for c in qhead) + '\n')
+        if missing:
+            sys.exit(f'!! no CheckM2 statistics for representative(s) {", ".join(missing[:5])}: the set '
+                     'could not be extended later')
 
     cols = ['genome_id', 'fasta', 'sample', 'version_added', 'is_representative']
     with open(os.path.join(a.out, 'members.tsv'), 'w') as fh:

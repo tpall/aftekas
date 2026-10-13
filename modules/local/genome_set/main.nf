@@ -17,12 +17,14 @@ process GENOME_SET_UPDATE {
     path(mags, stageAs: 'mags/*')
     path(previous)          // previous version directory, or [] for a first build
     path(tool_versions)
+    path(quality)           // the CheckM2 report galah clustered with (new MAGs + previous quality.tsv)
 
     output:
     path "genome_set"                        , emit: set_dir
     path "genome_set/representatives/*.fa"   , emit: representatives
     path "genome_set/set.json"               , emit: set_json
     path "genome_set/members.tsv"            , emit: members
+    path "genome_set/quality.tsv"            , emit: quality
     path "versions.yml"                      , emit: versions
 
     when:
@@ -37,6 +39,7 @@ process GENOME_SET_UPDATE {
         --ani ${ani} \\
         --sample ${sample_label} \\
         --fasta-dir mags \\
+        --quality ${quality} \\
         ${prev} \\
         --tool-versions "\$(cat ${tool_versions} | tr '\\n' ';')" \\
         --out genome_set
@@ -54,6 +57,7 @@ process GENOME_SET_UPDATE {
     printf '>c\\nACGT\\n' > genome_set/representatives/CGS-0001.fa
     printf 'genome_id\\tfasta\\tsample\\tversion_added\\tis_representative\\nCGS-0001\\tx.fa\\t${sample_label}\\t1\\tyes\\n' > genome_set/members.tsv
     printf '{"set_id": "${set_id}", "version": 1, "genomes": 1, "ani": ${ani}}' > genome_set/set.json
+    printf 'Name\\tCompleteness\\tContamination\\nCGS-0001\\t90\\t1\\n' > genome_set/quality.tsv
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: 3.10

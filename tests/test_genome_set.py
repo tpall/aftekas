@@ -23,12 +23,14 @@ def case(label, cond):
         print(f'FAIL {label}')
 
 
-def run(work, clusters, sample, out, previous=None, set_id='CGS-T', ani='95'):
+def run(work, clusters, sample, out, previous=None, set_id='CGS-T', ani='95', quality=None):
     cmd = [sys.executable, SCRIPT, '--clusters', os.path.join(work, clusters), '--set-id', set_id,
            '--ani', ani, '--sample', sample, '--fasta-dir', os.path.join(work, 'mags'),
            '--out', os.path.join(work, out)]
     if previous:
         cmd += ['--previous', os.path.join(work, previous)]
+    if quality:
+        cmd += ['--quality', os.path.join(work, quality)]
     p = subprocess.run(cmd, capture_output=True, text=True)
     return p.returncode, p.stdout + p.stderr
 
@@ -126,6 +128,36 @@ case('staged by id: the new MAG joins the stored genome',
      [(r['genome_id'], r['is_representative']) for r in m2s if r['fasta'] == 's2_a_better.fa'] == [('CGS-0001', 'no')])
 case('staged by id: the stored representative keeps its history row',
      [(r['genome_id'], r['sample'], r['is_representative']) for r in m2s if r['fasta'] == 's1_a.fa'] == [('CGS-0001', 'S1', 'yes')])
+
+# quality.tsv: the set carries CheckM2 statistics for its representatives under their ids, so the
+# next version can hand them to galah. v1 from this run's report; v2 from the previous quality.tsv
+# (Name = id) plus the new MAGs' rows (Name = file name), as REFSET concatenates them.
+Q = 'Name\tCompleteness\tContamination\n'
+with open(os.path.join(work, 'q1.tsv'), 'w') as fh:
+    fh.write(Q + 's1_a\t95\t1\ns1_b\t90\t2\n')
+rc, out = run(work, 'c1.tsv', 'S1', 'q_v1', quality='q1.tsv')
+def quality(version):
+    with open(os.path.join(work, version, 'quality.tsv')) as fh:
+        head = fh.readline().rstrip('\n').split('\t')
+        return {l.split('\t')[0]: dict(zip(head, l.rstrip('\n').split('\t'))) for l in fh if l.strip()}
+q1 = quality('q_v1')
+case('quality.tsv: v1 has a row per representative, under its id',
+     rc == 0 and sorted(q1) == ['CGS-0001', 'CGS-0002'] and q1['CGS-0001']['Completeness'] == '95')
+with open(os.path.join(work, 'q1.tsv')) as fh:
+    prev_q = fh.read()
+with open(os.path.join(work, 'q_v1', 'quality.tsv')) as fh:
+    stored = fh.read()
+with open(os.path.join(work, 'q2.tsv'), 'w') as fh:
+    fh.write(stored + 's2_a_better\t99\t0.5\ns2_new\t80\t3\n')
+rc, out = run(work, 'c2s.tsv', 'S2', 'q_v2', previous='q_v1', quality='q2.tsv')
+q2 = quality('q_v2')
+case('quality.tsv: v2 carries the stored rows and adds the new genome',
+     rc == 0 and sorted(q2) == ['CGS-0001', 'CGS-0002', 'CGS-0003']
+     and q2['CGS-0001']['Completeness'] == '95' and q2['CGS-0003']['Completeness'] == '80')
+with open(os.path.join(work, 'q_bad.tsv'), 'w') as fh:
+    fh.write(Q + 's1_a\t95\t1\n')
+rc, out = run(work, 'c1.tsv', 'S1', 'q_bad', quality='q_bad.tsv')
+case('quality.tsv: a representative without statistics stops', rc != 0 and 'no CheckM2 statistics' in out)
 
 shutil.rmtree(work)
 print(f'{ok}/{ok + fail} passed')

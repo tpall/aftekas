@@ -67,12 +67,14 @@ workflow REFSET {
         GALAH_CLUSTER.out.clusters,
         ch_all_genomes,
         ch_previous,
-        GALAH_CLUSTER.out.versions
+        GALAH_CLUSTER.out.versions,
+        ch_quality
     )
     ch_versions = ch_versions.mix(GENOME_SET_UPDATE.out.versions)
 
-    // Abundance of every genome in the set, per sample, from mapping. When the set gained genomes,
-    // earlier samples are remapped as well: that is what --remap_all carries into the run's input.
+    // Abundance of every genome in the set, per sample, from mapping. Only the samples of this run
+    // are mapped. When the set gained genomes, earlier samples of the series have to be remapped
+    // against the new representatives outside this run (there is no --remap_all yet).
     ch_set_version = GENOME_SET_UPDATE.out.set_json
         .map { json -> new groovy.json.JsonSlurper().parseText(json.text).version }
 

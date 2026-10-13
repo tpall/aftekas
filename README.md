@@ -123,5 +123,3 @@ nextflow run tpall/aftekas --input my_samples.csv --profile_reads --skip_assembl
 ```
 
 Output under `results/profile/`: `sylph_profile.tsv` (genome level: ANI, effective coverage, taxonomic and sequence abundance per sample), `taxprof/<sample>.sylphmpa` (MetaPhlAn-style lineage profiles), and `sylph_relative_abundance.tsv` / `sylph_sequence_abundance.tsv` (clade x sample matrices). Profiling reads the host/phiX-removed reads, not the BBNorm-normalised ones, because normalisation flattens the coverage the abundances are estimated from.
-
-Tag client runs for accounting on a metered cluster with `-process.clusterOptions '--wckey=<client>'`.

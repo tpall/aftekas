@@ -26,7 +26,16 @@ workflow REFSET {
     ch_versions = ch_versions.mix(PREP_MAGS.out.versions.first())
 
     ch_new_mags = PREP_MAGS.out.mags.collect()
+
+    // galah needs CheckM2 statistics for every genome it clusters, the representatives the set
+    // already holds included. Those come from the previous version's quality.tsv, in the same
+    // CheckM2 columns as PREP_MAGS writes (Name = representative id). Without it galah panics with
+    // "Failed to find CheckM statistics" on every stored genome (first extend, 2026-10-13).
+    ch_previous_quality = previous_set
+        ? channel.fromPath("${previous_set}/quality.tsv", checkIfExists: true)
+        : channel.empty()
     ch_quality  = PREP_MAGS.out.quality
+        .mix(ch_previous_quality)
         .collectFile(name: 'quality_report.tsv', keepHeader: true, skip: 1)
 
     // The genomes the set already holds go into the same clustering, so an existing genome keeps its

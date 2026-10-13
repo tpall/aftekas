@@ -10,6 +10,8 @@ include { METAQUAST } from './modules/local/metaquast/main'
 include { BINNING } from './subworkflows/binning.nf'
 include { BINREFINE } from './subworkflows/binrefine.nf'
 include { TAXONOMY } from './subworkflows/taxonomy.nf'
+include { PROFILE } from './subworkflows/profile.nf'
+include { REFSET } from './subworkflows/refset.nf'
 include { MULTIQC } from './modules/nf-core/multiqc'
 
 // Defaulting workflow
@@ -21,6 +23,17 @@ workflow {
 
     // Print summary of supplied parameters
     log.info paramsSummaryLog(workflow)
+
+    // Two independent switches: --profile_reads adds sylph read profiling next to
+    // the assembly branch; --skip_assembly drops the assembly branch altogether.
+    // Together they are the read-only "snapshot" run; apart, the default MAG run
+    // or a MAG run that also reports what binning lost.
+    if (params.profile_reads && !params.sylph_db) {
+        error "--profile_reads needs --sylph_db pointing at a sylph GTDB database (.syl2db / .syldb)"
+    }
+    if (params.skip_assembly && !params.profile_reads) {
+        log.warn "--skip_assembly without --profile_reads: only QC, trimming and host removal will run"
+    }
 
     // Create a new channel of metadata from a sample sheet passed to the pipeline through the --input parameter
     ch_input = channel.fromList(samplesheetToList(params.input, "assets/schema_input.json"))
@@ -62,41 +75,104 @@ workflow {
     ch_processed_reads = PREPROCESS.out.processed_reads
     ch_normed_reads = PREPROCESS.out.normed_reads
     
-    // Assemble and assess assembly
-    ASSEMBLY(
-        ch_normed_reads,
-        ch_processed_reads
-    )
-    ch_versions = ch_versions.mix(ASSEMBLY.out.versions)
-    ch_multiqc = ch_multiqc.mix(ASSEMBLY.out.multiqc.collect { it -> it[1] }.ifEmpty([]))
-    ch_assemblies = ASSEMBLY.out.assemblies
-    ch_bambais = ASSEMBLY.out.bambais
-    ch_assemblies
-        .map { meta, contigs, _bam -> [ meta, contigs ] }
-        .set { ch_contigs }
-    ch_covstats = ASSEMBLY.out.covstats
+    // Read-based taxonomic profiling with sylph (optional). Takes the host/phiX-
+    // removed reads, not the normalised ones: BBNorm flattens coverage by design.
+    ch_sylph_profile = channel.empty()
+    ch_sylph_taxprof = channel.empty()
+    ch_sylph_relab   = channel.empty()
+    ch_sylph_seqab   = channel.empty()
+    if (params.profile_reads) {
+        PROFILE(
+            ch_processed_reads,
+            file(params.sylph_db, checkIfExists: true),
+            params.sylph_tax_dir ? file(params.sylph_tax_dir, checkIfExists: true) : [],
+            params.sylph_tax_id
+        )
+        ch_versions      = ch_versions.mix(PROFILE.out.versions)
+        ch_sylph_profile = PROFILE.out.profile
+        ch_sylph_taxprof = PROFILE.out.taxprof
+        ch_sylph_relab   = PROFILE.out.relative_abundance
+        ch_sylph_seqab   = PROFILE.out.sequence_abundance
+    }
 
-    // Assess assembly quality with QUAST
-    METAQUAST( ch_contigs.collect { _meta, contigs -> [ contigs ] } )
-    ch_multiqc = ch_multiqc.mix(METAQUAST.out.report)
-    ch_versions = ch_versions.mix(METAQUAST.out.versions)
+    // Assembly branch: assembly -> binning -> refinement -> GTDB-Tk. Every channel
+    // the publish block reads is declared here so --skip_assembly leaves them empty
+    // instead of referencing a process that never ran.
+    ch_contigs            = channel.empty()
+    ch_covstats           = channel.empty()
+    ch_prodigal_faa       = channel.empty()
+    ch_binning_results    = channel.empty()
+    ch_binning_results_qc = channel.empty()
+    ch_final_bins         = channel.empty()
+    ch_final_bins_qc      = channel.empty()
+    ch_contig_to_bin      = channel.empty()
+    ch_tax_summary        = channel.empty()
+    ch_tax_tree           = channel.empty()
+    if (!params.skip_assembly) {
+        // Assemble and assess assembly
+        ASSEMBLY(
+            ch_normed_reads,
+            ch_processed_reads
+        )
+        ch_versions = ch_versions.mix(ASSEMBLY.out.versions)
+        ch_multiqc = ch_multiqc.mix(ASSEMBLY.out.multiqc.collect { it -> it[1] }.ifEmpty([]))
+        ch_assemblies = ASSEMBLY.out.assemblies
+        ch_bambais = ASSEMBLY.out.bambais
+        ch_assemblies
+            .map { meta, contigs, _bam -> [ meta, contigs ] }
+            .set { ch_contigs }
+        ch_covstats = ASSEMBLY.out.covstats
 
-    // Binning of contigs into MAGs
-    BINNING(ch_assemblies, ch_bambais)
-    ch_versions = ch_versions.mix(BINNING.out.versions)
-    ch_contigs_to_bin = BINNING.out.contigs2bin
-    ch_binning_results = BINNING.out.binning_results
+        // Assess assembly quality with QUAST
+        METAQUAST( ch_contigs.collect { _meta, contigs -> [ contigs ] } )
+        ch_multiqc = ch_multiqc.mix(METAQUAST.out.report)
+        ch_versions = ch_versions.mix(METAQUAST.out.versions)
 
-    // Bin refinement
-    BINREFINE(ch_contigs, ch_contigs_to_bin)
-    ch_versions = ch_versions.mix(BINREFINE.out.versions)
-    ch_final_bins = BINREFINE.out.refined_bins
-    ch_contig_to_bin = BINREFINE.out.contig_to_bin
-    ch_multiqc = ch_multiqc.mix(BINREFINE.out.refined_bins_qc.collect { it -> it[1] }.ifEmpty([]))
+        // Binning of contigs into MAGs
+        BINNING(ch_assemblies, ch_bambais)
+        ch_versions = ch_versions.mix(BINNING.out.versions)
+        ch_contigs_to_bin = BINNING.out.contigs2bin
+        ch_binning_results = BINNING.out.binning_results
 
-    // Taxonomic classification of final bins
-    TAXONOMY(ch_final_bins)
-    ch_versions = ch_versions.mix(TAXONOMY.out.versions)
+        // Bin refinement
+        BINREFINE(ch_contigs, ch_contigs_to_bin)
+        ch_versions = ch_versions.mix(BINREFINE.out.versions)
+        ch_final_bins = BINREFINE.out.refined_bins
+        ch_contig_to_bin = BINREFINE.out.contig_to_bin
+        ch_multiqc = ch_multiqc.mix(BINREFINE.out.refined_bins_qc.collect { it -> it[1] }.ifEmpty([]))
+
+        // Taxonomic classification of final bins
+        TAXONOMY(ch_final_bins)
+        ch_versions = ch_versions.mix(TAXONOMY.out.versions)
+        ch_prodigal_faa       = BINREFINE.out.prodigal_faa
+        ch_binning_results_qc = BINREFINE.out.input_bins_qc
+        ch_final_bins_qc      = BINREFINE.out.refined_bins_qc
+        ch_tax_summary        = TAXONOMY.out.tax_summary
+        ch_tax_tree           = TAXONOMY.out.tax_tree
+    }
+
+    // Common reference set for a series: one versioned genome set, and abundances from mapping every
+    // sample's reads to it. Without --genome_set_id the run stays per-sample, as before.
+    ch_genome_set      = channel.empty()
+    ch_genome_members  = channel.empty()
+    ch_set_abundance   = channel.empty()
+    if (params.genome_set_id) {
+        if (params.skip_assembly) {
+            error "--genome_set_id needs the assembly branch: the set is built from refined MAGs"
+        }
+        REFSET(
+            ch_final_bins,
+            ch_final_bins_qc,
+            ch_processed_reads,
+            params.genome_set
+        )
+        ch_versions       = ch_versions.mix(REFSET.out.versions)
+        // The whole set directory, representatives included: the next sample of the series
+        // extends this exact directory (--genome_set), so it must be published, not left in work/.
+        ch_genome_set     = REFSET.out.set_dir
+        ch_genome_members = REFSET.out.members
+        ch_set_abundance  = REFSET.out.abundance
+    }
 
     // Generate MultiQC report
     ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
@@ -114,14 +190,20 @@ workflow {
     }
     contigs = ch_contigs.map { meta, contigs -> [ id: meta.id, assembler: meta.assembler, fa: contigs ] }
     covstats = ch_covstats.map { meta, stats -> [ id: meta.id, assembler: meta.assembler, tsv: stats ] }
-    prodigal_faa = BINREFINE.out.prodigal_faa
+    prodigal_faa = ch_prodigal_faa
     binning_results = ch_binning_results
-    binning_results_qc = BINREFINE.out.input_bins_qc.map { _meta, file -> [ file ]}.flatten()
+    binning_results_qc = ch_binning_results_qc.map { _meta, file -> [ file ]}.flatten()
     final_bins = ch_final_bins
-    final_bins_qc = BINREFINE.out.refined_bins_qc
+    final_bins_qc = ch_final_bins_qc
     final_contig_to_bin = ch_contig_to_bin.map { meta, contig_to_bin -> [ id: meta.id, mapping: contig_to_bin ] }
-    tax_summary = TAXONOMY.out.tax_summary
-    tax_tree = TAXONOMY.out.tax_tree
+    tax_summary = ch_tax_summary
+    tax_tree = ch_tax_tree
+    sylph_profile = ch_sylph_profile
+    sylph_taxprof = ch_sylph_taxprof
+    sylph_relative_abundance = ch_sylph_relab
+    sylph_sequence_abundance = ch_sylph_seqab
+    genome_set = ch_genome_set
+    genome_set_abundance = ch_set_abundance.map { meta, tsv -> [ id: meta.id, tsv: tsv ] }
     multiqc_report = MULTIQC.out.report
     versions = ch_versions.collectFile(name: 'versions.yml')
 }
@@ -159,6 +241,24 @@ output {
     }
     tax_tree {
         path "taxonomy"
+    }
+    sylph_profile {
+        path "profile/"
+    }
+    sylph_taxprof {
+        path "profile/"
+    }
+    sylph_relative_abundance {
+        path "profile/"
+    }
+    sylph_sequence_abundance {
+        path "profile/"
+    }
+    genome_set {
+        path "genome_set/"
+    }
+    genome_set_abundance {
+        path { ab -> ab.tsv >> "genome_set/abundance/${ab.id}.coverm.tsv" }
     }
     multiqc_report {
         path "."

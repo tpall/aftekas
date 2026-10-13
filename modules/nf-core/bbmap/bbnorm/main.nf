@@ -46,4 +46,20 @@ process BBMAP_BBNORM {
         bbmap: \$(bbversion.sh | grep -v "Duplicate cpuset")
     END_VERSIONS
     """
+
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    if [ "${meta.single_end}" = "true" ]; then
+        echo | gzip > ${prefix}.fastq.gz
+    else
+        echo | gzip > ${prefix}_1.nm.fastq.gz
+        echo | gzip > ${prefix}_2.nm.fastq.gz
+    fi
+    touch ${prefix}.bbnorm.log
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        bbmap: \$(bbversion.sh 2>/dev/null)
+    END_VERSIONS
+    """
 }

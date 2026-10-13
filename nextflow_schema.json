@@ -10,7 +10,9 @@
       "type": "object",
       "fa_icon": "fas fa-terminal",
       "description": "Define where the pipeline should find input data and save output data.",
-      "required": ["input"],
+      "required": [
+        "input"
+      ],
       "properties": {
         "input": {
           "type": "string",
@@ -25,11 +27,86 @@
           "default": "samples.csv"
         }
       }
+    },
+    "read_profiling_options": {
+      "title": "Read-based profiling options",
+      "type": "object",
+      "fa_icon": "fas fa-chart-bar",
+      "description": "Optional sylph profiling of the cleaned reads against GTDB, with or without the assembly branch.",
+      "properties": {
+        "profile_reads": {
+          "type": "boolean",
+          "default": false,
+          "description": "Profile the host/phiX-removed reads with sylph against a GTDB database.",
+          "help_text": "Adds results/profile/: sylph's genome-level table, one .sylphmpa taxonomic profile per sample and clade x sample matrices of relative and sequence abundance. Independent of --skip_assembly."
+        },
+        "skip_assembly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Stop after preprocessing (and read profiling, if enabled); no assembly, binning, bin refinement or GTDB-Tk.",
+          "help_text": "With --profile_reads this is the read-only taxonomic snapshot. Without it only QC, trimming and host removal run."
+        },
+        "sylph_db": {
+          "type": "string",
+          "format": "file-path",
+          "exists": true,
+          "description": "sylph GTDB database (.syl2db preferred, .syldb accepted). Required with --profile_reads.",
+          "help_text": "Pre-built: https://sylph-docs.github.io/pre%E2%80%90built-databases/ ; gtdb-r226-c200-dbv2.syl2db (14 GB) matches the GTDB-Tk r226 data this workflow uses."
+        },
+        "sylph_tax_dir": {
+          "type": "string",
+          "format": "directory-path",
+          "exists": true,
+          "description": "Directory written by `sylph-tax download --download-to <dir>`. Omit to download (~50 MB) inside the task."
+        },
+        "sylph_tax_id": {
+          "type": "string",
+          "default": "GTDB_r226",
+          "description": "sylph-tax taxonomy identifier; must match the GTDB release sylph_db was built from (GTDB_r226, GTDB_r232, ...)."
+        }
+      }
+    },
+    "reference_set_options": {
+      "title": "Common reference set (series runs)",
+      "type": "object",
+      "fa_icon": "fas fa-layer-group",
+      "description": "One versioned genome set for a client's sample series, so two samples can be compared genome by genome.",
+      "properties": {
+        "genome_set_id": {
+          "type": "string",
+          "description": "Client series id for the common reference set (e.g. CGS-PLANT-A). Set it to compare samples over time.",
+          "help_text": "With this set, refined MAGs of every sample are clustered into one versioned genome set and abundances come from mapping every sample's reads to that set, not from each sample's own assembly. Without it the run stays per-sample. See docs/design-common-reference-set.md."
+        },
+        "genome_set": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Previous genome-set version directory to extend. Omit to build version 1.",
+          "help_text": "The set grows: genomes that match an existing representative at the ANI threshold keep their id, new genomes get new ids and the version increases. A version that added genomes requires remapping the earlier samples."
+        },
+        "genome_set_ani": {
+          "type": "number",
+          "default": 95,
+          "description": "ANI threshold for clustering MAGs into one genome (species level).",
+          "help_text": "Changing this makes a new set id, not a new version: the clusters, and therefore the genome ids, are defined by it."
+        },
+        "bird_which_shim": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Path to a `which` that tolerates --tty-only, bound over /usr/bin/which in the galah and CoverM containers.",
+          "help_text": "Both tools use bird_tool_utils, which probes for fastANI, skani and the mappers by calling /usr/bin/which --tty-only by absolute path. The biocontainers images ship BusyBox which, which rejects that flag, so the tools abort although the dependency is present. Without this the reference-set steps fail immediately."
+        }
+      }
     }
   },
   "allOf": [
     {
       "$ref": "#/$defs/input_output_options"
+    },
+    {
+      "$ref": "#/$defs/read_profiling_options"
+    },
+    {
+      "$ref": "#/$defs/reference_set_options"
     }
   ],
   "properties": {
@@ -108,5 +185,8 @@
       "description": "Slurm queue name. Defaults to 'main' when unset."
     }
   },
-  "required": ["phix_accession", "host_fasta_url"]
+  "required": [
+    "phix_accession",
+    "host_fasta_url"
+  ]
 }

@@ -111,6 +111,22 @@ reps = {r['genome_id'] for r in m3 if r['is_representative'] == 'yes'}
 case('every representative has a fasta named by its id',
      all(os.path.exists(os.path.join(work, 'v3', 'representatives', f'{g}.fa')) for g in reps))
 
+# v2 as REFSET really stages it: the stored representatives arrive named by their id (CGS-0001.fa,
+# from <previous>/representatives/), not by the MAG they came from. The first real extend
+# (2026-10-13) gave every stored genome a second id this way; the cases above name them by MAG.
+clusters(work, 'c2s.tsv', [('CGS-0001', 'CGS-0001'), ('CGS-0001', 's2_a_better'),
+                           ('CGS-0002', 'CGS-0002'), ('s2_new', 's2_new')])
+rc, out = run(work, 'c2s.tsv', 'S2', 'v2s', previous='v1')
+m2s = members(work, 'v2s')
+case('staged by id: only the new genome is added', rc == 0 and meta(work, 'v2s')['added_this_version'] == ['CGS-0003'])
+case('staged by id: the set counts each genome once', meta(work, 'v2s')['genomes'] == 3)
+case('staged by id: no member row for the staged file names',
+     not any(r['fasta'].startswith('CGS-') for r in m2s))
+case('staged by id: the new MAG joins the stored genome',
+     [(r['genome_id'], r['is_representative']) for r in m2s if r['fasta'] == 's2_a_better.fa'] == [('CGS-0001', 'no')])
+case('staged by id: the stored representative keeps its history row',
+     [(r['genome_id'], r['sample'], r['is_representative']) for r in m2s if r['fasta'] == 's1_a.fa'] == [('CGS-0001', 'S1', 'yes')])
+
 shutil.rmtree(work)
 print(f'{ok}/{ok + fail} passed')
 sys.exit(1 if fail else 0)

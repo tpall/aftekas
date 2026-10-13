@@ -95,6 +95,12 @@ def main():
 
     # fasta file name -> existing genome id, for every representative the set already has
     fasta_to_id = {r['fasta']: r['genome_id'] for r in prev_members if r['is_representative'] == 'yes'}
+    # REFSET stages the stored representatives from <previous>/representatives/, where each is named
+    # by its id (CGS-0001.fa), not by the MAG it came from. Those names are the same genomes: map them
+    # to their id, and never give them a member row of their own (the historical row is carried
+    # forward below). Without this every stored genome came back under a second id (2026-10-13).
+    staged = {f"{r['genome_id']}.fa": r['genome_id'] for r in prev_members if r['is_representative'] == 'yes'}
+    fasta_to_id.update(staged)
     prev_by_fasta = {r['fasta']: r for r in prev_members}
     added_in = {r['genome_id']: r['version_added'] for r in prev_members}
     used_ids = {r['genome_id'] for r in prev_members}
@@ -117,6 +123,8 @@ def main():
             rep_fasta = rep
             added.append(gid)
         for f in mem:
+            if f in staged:
+                continue
             known_row = prev_by_fasta.get(f)
             # a MAG that is already a representative keeps its own id, even when the cluster holds
             # another one: a bridge must not absorb an id that abundances were reported against

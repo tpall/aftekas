@@ -15,6 +15,8 @@ This [Nextflow](https://www.nextflow.io/docs/latest/index.html) workflow was con
 
 By default, *aftekas* uses the "*human-t2t-hla masked with 150mers for 985 FDA-ARGOS bacterial, 18,719 RefSeq viral, and 26,928 Millard Lab phage genomes*" reference genome and bowtie2 index from the [bede/hostile](https://github.com/bede/hostile).
 
+A short Methods description (English and Estonian) with software versions and references is available in [METHODS.md](METHODS.md).
+
 ## Usage
 
 ### Set up databases

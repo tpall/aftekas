@@ -99,6 +99,9 @@ workflow {
     // the publish block reads is declared here so --skip_assembly leaves them empty
     // instead of referencing a process that never ran.
     ch_contigs            = channel.empty()
+    ch_assembly_graph     = channel.empty()
+    ch_bams               = channel.empty()
+    ch_bais               = channel.empty()
     ch_covstats           = channel.empty()
     ch_prodigal_faa       = channel.empty()
     ch_binning_results    = channel.empty()
@@ -122,6 +125,11 @@ workflow {
             .map { meta, contigs, _bam -> [ meta, contigs ] }
             .set { ch_contigs }
         ch_covstats = ASSEMBLY.out.covstats
+        // Empty unless --assembler spades. Published because the graph cannot be
+        // recovered after the fact, and accessory-contig recruitment needs it.
+        ch_assembly_graph = ASSEMBLY.out.assembly_graph
+        ch_bams = ASSEMBLY.out.bams
+        ch_bais = ASSEMBLY.out.bambais
 
         // Assess assembly quality with QUAST
         METAQUAST( ch_contigs.collect { _meta, contigs -> [ contigs ] } )
@@ -190,6 +198,11 @@ workflow {
     }
     contigs = ch_contigs.map { meta, contigs -> [ id: meta.id, assembler: meta.assembler, fa: contigs ] }
     covstats = ch_covstats.map { meta, stats -> [ id: meta.id, assembler: meta.assembler, tsv: stats ] }
+    assembly_graph = ch_assembly_graph.map { meta, gfa -> [ id: meta.id, assembler: meta.assembler, gfa: gfa ] }
+    // --save_bams gates these upstream: the output DSL takes no conditionals, so an
+    // empty flatMap is how a target is switched off.
+    bams = ch_bams.flatMap { meta, bam -> params.save_bams ? [ [ meta, bam ] ] : [] }
+    bais = ch_bais.flatMap { meta, bai -> params.save_bams ? [ [ meta, bai ] ] : [] }
     prodigal_faa = ch_prodigal_faa
     binning_results = ch_binning_results
     binning_results_qc = ch_binning_results_qc.map { _meta, file -> [ file ]}.flatten()
@@ -217,6 +230,15 @@ output {
     }
     covstats {
         path { covstats -> covstats.tsv >> "assembly/covstats/${covstats.assembler}_${covstats.id}_contigs_covstats.tsv" }
+    }
+    assembly_graph {
+        path { graph -> graph.gfa >> "assembly/graph/${graph.assembler}_${graph.id}_assembly_graph.gfa.gz" }
+    }
+    bams {
+        path "assembly/bam/"
+    }
+    bais {
+        path "assembly/bam/"
     }
     prodigal_faa {
         path "assembly/prodigal/"

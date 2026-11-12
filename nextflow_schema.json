@@ -28,6 +28,30 @@
         }
       }
     },
+    "assembly_options": {
+      "title": "Assembly options",
+      "type": "object",
+      "fa_icon": "fas fa-puzzle-piece",
+      "description": "Choice of assembler, and whether the assembly graph is produced.",
+      "properties": {
+        "assembler": {
+          "type": "string",
+          "default": "megahit",
+          "enum": [
+            "megahit",
+            "spades"
+          ],
+          "description": "Assembler for the assembly branch: MEGAHIT (default) or metaSPAdes.",
+          "help_text": "'spades' runs SPAdes with --meta and additionally publishes assembly/graph/<assembler>_<id>_assembly_graph.gfa.gz, which accessory/mobile-contig recruitment needs and which cannot be recovered after the run. It costs considerably more memory and wall time than MEGAHIT; use it only for runs that need the graph. On this path the binned sequences are SPAdes scaffolds, not contigs.fasta, so that contig names match the graph's path lines."
+        },
+        "save_bams": {
+          "type": "boolean",
+          "default": false,
+          "description": "Publish the sorted BAM and its index to assembly/bam/.",
+          "help_text": "Off by default: the alignments are large and the pipeline only needs them inside work/. Turn on for runs feeding accessory-contig recruitment, whose mate-pair evidence channel reads the alignments. Files are named <assembler>_<id>_sorted.bam and .bam.bai so samtools finds the index."
+        }
+      }
+    },
     "read_profiling_options": {
       "title": "Read-based profiling options",
       "type": "object",
@@ -101,6 +125,9 @@
   "allOf": [
     {
       "$ref": "#/$defs/input_output_options"
+    },
+    {
+      "$ref": "#/$defs/assembly_options"
     },
     {
       "$ref": "#/$defs/read_profiling_options"

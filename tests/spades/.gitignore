@@ -1,0 +1,6 @@
+reads/
+work/
+run.log
+run_attempt*.log
+.nextflow*
+params.yml

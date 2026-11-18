@@ -5,7 +5,7 @@ include { validateParameters; paramsSummaryLog; samplesheetToList } from 'plugin
 include { SETUP } from './subworkflows/setup.nf'
 include { PREPROCESS } from './subworkflows/preprocess.nf'
 include { CAT_FASTQ } from './modules/nf-core/cat/fastq/main' 
-include { ASSEMBLY } from './subworkflows/assembly.nf'
+include { ASSEMBLY; asmName; assemblerKey } from './subworkflows/assembly.nf'
 include { METAQUAST } from './modules/local/metaquast/main'  
 include { BINNING } from './subworkflows/binning.nf'
 include { BINREFINE } from './subworkflows/binrefine.nf'
@@ -13,6 +13,25 @@ include { TAXONOMY } from './subworkflows/taxonomy.nf'
 include { PROFILE } from './subworkflows/profile.nf'
 include { REFSET } from './subworkflows/refset.nf'
 include { MULTIQC } from './modules/nf-core/multiqc'
+
+// The published tree splits in two.
+//
+// Read-level outputs -- processed_reads/ and profile/ -- are produced before the
+// assembler branch and do not depend on it, so they stay at the top of --outdir and a
+// second assembler arm reuses them instead of re-running preprocessing and host
+// removal. Everything from assembly/ down does depend on the assembler and goes under
+// an assembler subdirectory. That subdirectory is what lets both arms share one
+// --outdir: binrefine/, taxonomy/ and genome_set/ carry no assembler token in their
+// filenames, so without it the second arm would overwrite the first in place, on
+// exactly the files that define which contig belongs to which bin.
+//
+// MultiQC and versions.yml are per-run, not per-read-set: the report carries METAQUAST
+// and Binette sections. They go under the arm, except on a --skip_assembly snapshot
+// run, where nothing assembler-specific is produced and an arm directory holding only
+// a report would be misleading.
+def runDir() {
+    params.skip_assembly ? '.' : asmName()
+}
 
 // Defaulting workflow
 workflow {
@@ -23,6 +42,58 @@ workflow {
 
     // Print summary of supplied parameters
     log.info paramsSummaryLog(workflow)
+
+    // Two arms sharing one --outdir also share processed_reads/ and profile/, which is
+    // only sound while they were given the same reads. Keep the samplesheet beside them
+    // and refuse a run that changed it: the alternative is an outdir whose two arms
+    // claim to share reads that differ, which nothing downstream could detect.
+    if (params.outdir && params.input) {
+        def sheet = file(params.input)
+        def kept  = file("${params.outdir}/pipeline_info/input_samplesheet.csv")
+        if (kept.exists()) {
+            if (kept.text != sheet.text) {
+                error """
+                    --outdir '${params.outdir}' was built from a different samplesheet.
+
+                      kept with the existing results: ${kept}
+                      passed to this run:             ${sheet}
+
+                    processed_reads/ and profile/ are shared by every assembler arm in an
+                    outdir, so continuing would overwrite one read set's results with
+                    another's. Either point --outdir somewhere new, or pass the samplesheet
+                    the existing results were built from.
+                    """.stripIndent()
+            }
+        }
+        else {
+            kept.parent.mkdirs()
+            sheet.copyTo(kept)
+        }
+    }
+
+    // Per-arm provenance. Written at launch rather than on completion so that it also
+    // marks a failed or interrupted arm, and so that --save_bams is recorded: the BAM
+    // publish gate is evaluated at publish time, so a run that finished without it
+    // cannot be re-published, only re-run, and the manifest is the only way to tell
+    // afterwards whether assembly/bam/ is absent or was never asked for.
+    if (params.outdir && !params.skip_assembly) {
+        def manifest = file("${params.outdir}/${asmName()}/pipeline_info/run_manifest.json")
+        manifest.parent.mkdirs()
+        manifest.text = """\
+            {
+              "assembler": "${assemblerKey()}",
+              "assembler_token": "${asmName()}",
+              "save_bams": ${params.save_bams as boolean},
+              "assembly_graph": ${assemblerKey() == 'spades'},
+              "samplesheet": "${file(params.input)}",
+              "run_name": "${workflow.runName}",
+              "revision": "${workflow.revision ?: ''}",
+              "commit_id": "${workflow.commitId ?: ''}",
+              "nextflow_version": "${workflow.nextflow.version}",
+              "started": "${workflow.start}"
+            }
+            """.stripIndent()
+    }
 
     // Two independent switches: --profile_reads adds sylph read profiling next to
     // the assembly branch; --skip_assembly drops the assembly branch altogether.
@@ -226,43 +297,43 @@ output {
         path { reads -> reads.fq >> "processed_reads/${reads.id}_processed${reads.suffix}.fq.gz" }
     }
     contigs {
-        path { contigs -> contigs.fa >> "assembly/contigs/${contigs.assembler}_${contigs.id}_contigs.fa.gz" }
+        path { contigs -> contigs.fa >> "${asmName()}/assembly/contigs/${contigs.assembler}_${contigs.id}_contigs.fa.gz" }
     }
     covstats {
-        path { covstats -> covstats.tsv >> "assembly/covstats/${covstats.assembler}_${covstats.id}_contigs_covstats.tsv" }
+        path { covstats -> covstats.tsv >> "${asmName()}/assembly/covstats/${covstats.assembler}_${covstats.id}_contigs_covstats.tsv" }
     }
     assembly_graph {
-        path { graph -> graph.gfa >> "assembly/graph/${graph.assembler}_${graph.id}_assembly_graph.gfa.gz" }
+        path { graph -> graph.gfa >> "${asmName()}/assembly/graph/${graph.assembler}_${graph.id}_assembly_graph.gfa.gz" }
     }
     bams {
-        path "assembly/bam/"
+        path "${asmName()}/assembly/bam/"
     }
     bais {
-        path "assembly/bam/"
+        path "${asmName()}/assembly/bam/"
     }
     prodigal_faa {
-        path "assembly/prodigal/"
+        path "${asmName()}/assembly/prodigal/"
     }
     binning_results {
-        path "binning/bins/"
+        path "${asmName()}/binning/bins/"
     }
     binning_results_qc {
-        path { filename -> filename >> "binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv" }
+        path { filename -> filename >> "${asmName()}/binning/qc/${filename.baseName.tokenize('.')[1]}_quality_reports.tsv" }
     }
     final_contig_to_bin {
-        path { contig_to_bin -> contig_to_bin.mapping >> "binrefine/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv" }
+        path { contig_to_bin -> contig_to_bin.mapping >> "${asmName()}/binrefine/contig_to_bin/${contig_to_bin.id}_contig_to_bin.tsv" }
     }
     final_bins {
-        path "binrefine/"
+        path "${asmName()}/binrefine/"
     }
     final_bins_qc {
-        path "binrefine/qc/"
+        path "${asmName()}/binrefine/qc/"
     }
     tax_summary {
-        path "taxonomy/"
+        path "${asmName()}/taxonomy/"
     }
     tax_tree {
-        path "taxonomy"
+        path "${asmName()}/taxonomy"
     }
     sylph_profile {
         path "profile/"
@@ -277,15 +348,15 @@ output {
         path "profile/"
     }
     genome_set {
-        path "genome_set/"
+        path "${asmName()}/genome_set/"
     }
     genome_set_abundance {
-        path { ab -> ab.tsv >> "genome_set/abundance/${ab.id}.coverm.tsv" }
+        path { ab -> ab.tsv >> "${asmName()}/genome_set/abundance/${ab.id}.coverm.tsv" }
     }
     multiqc_report {
-        path "."
+        path "${runDir()}"
     }
     versions {
-        path "."
+        path "${runDir()}"
     }
 }

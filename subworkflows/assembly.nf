@@ -5,6 +5,20 @@ include { SAMTOOLS_SORT } from '../modules/nf-core/samtools/sort/main'
 include { BBMAP_PILEUP as PILEUP } from '../modules/nf-core/bbmap/pileup/main'
 include { FIX_FASTA_HEADER } from '../modules/local/fix_fasta_header/main'
 
+// --assembler, normalised. Both functions read params when called rather than at
+// include time, so a CLI override is honoured.
+def assemblerKey() {
+    (params.assembler ?: 'megahit').toString().toLowerCase()
+}
+
+// The assembler token. It appears in every published filename under assembly/ and
+// binning/, and it names the assembler-specific subdirectory of --outdir. main.nf's
+// output block includes this function rather than deriving the string again, so the
+// directory and the filenames inside it cannot disagree.
+def asmName() {
+    assemblerKey() == 'spades' ? 'metaSPAdes' : 'MEGAHIT'
+}
+
 workflow ASSEMBLY {
     take:
     normed_reads
@@ -16,11 +30,11 @@ workflow ASSEMBLY {
     // Only metaSPAdes produces an assembly graph, so this stays empty on the MEGAHIT path.
     ch_assembly_graph = channel.empty()
 
-    def assembler = (params.assembler ?: 'megahit').toString().toLowerCase()
+    def assembler = assemblerKey()
     if (!(assembler in ['megahit', 'spades'])) {
         error "--assembler must be 'megahit' or 'spades', got '${params.assembler}'"
     }
-    def asm_name = assembler == 'spades' ? 'metaSPAdes' : 'MEGAHIT'
+    def asm_name = asmName()
 
     if (assembler == 'megahit') {
         // Assemble reads with MEGAHIT
@@ -112,9 +126,19 @@ workflow ASSEMBLY {
     .set { ch_covstats }
     ch_versions = ch_versions.mix(PILEUP.out.versions)
 
+    // This is the channel BINNING and BINREFINE run on, so its meta is what names the
+    // binner outputs and Prodigal's. Those prefixes used to be hardcoded 'MEGAHIT_';
+    // now that they read meta.assembler, a join that drops the key no longer mislabels
+    // one file -- it names the entire binning tree null_*. That failure is invisible
+    // until someone reads the directory, so fail here instead.
     ch_contigs.map { meta, contigs -> [ meta.id, meta, contigs ] }
     .combine(ch_sorted_bams.map { meta, bam -> [ meta.id, meta, bam ] }, by: 0)
-    .map { _id, _meta, contigs, _meta2, bam -> [ _meta, contigs, bam ] }
+    .map { _id, meta, contigs, _meta2, bam ->
+        if (!meta.assembler) {
+            error "ASSEMBLY: meta.assembler is missing for '${meta.id}'. A join upstream " +
+                  "dropped it; the binners and Prodigal would publish their output as null_*."
+        }
+        [ meta, contigs, bam ] }
     .set { ch_assemblies }
 
     emit:

@@ -66,6 +66,43 @@ nextflow run tpall/aftekas -profile cluster --input my_samples.csv --array_size 
 
 Above, we have four unique sample ids in my_samples.csv, therefore `--array_size 4`.
 
+### Output layout
+
+The published tree splits at the assembler. Read-level outputs are produced before the
+assembler branch and sit at the top of `--outdir`; everything derived from an assembly
+sits under `MEGAHIT/` or `metaSPAdes/`:
+
+```
+results/
+├── processed_reads/              shared: trimmed, host- and phiX-removed reads
+├── profile/                      shared: sylph read profiling
+├── pipeline_info/
+│   └── input_samplesheet.csv     the sheet these results were built from
+└── MEGAHIT/                      or metaSPAdes/, per --assembler
+    ├── assembly/                 contigs, covstats, graph (metaSPAdes only), bam, prodigal
+    ├── binning/                  per-binner bins and their QC
+    ├── binrefine/                Binette-refined MAGs, contig_to_bin, QC
+    ├── taxonomy/                 GTDB-Tk
+    ├── genome_set/               dereplicated reference set
+    ├── pipeline_info/
+    │   └── run_manifest.json     assembler, --save_bams, revision, run name, start time
+    └── multiqc_report.html
+```
+
+This means **both assemblers can share one `--outdir`**, and the second arm reuses the
+first arm's preprocessing instead of repeating it. The subdirectory is what makes that
+safe: filenames under `assembly/` and `binning/` carry an assembler token, but
+`binrefine/`, `taxonomy/` and `genome_set/` do not, so without it a second arm would
+overwrite the first in place — on exactly the files that record which contig belongs to
+which bin, and with no error.
+
+Because the read-level outputs are shared, the samplesheet is kept beside them and a run
+that passes a different one into the same `--outdir` is refused rather than silently
+overwriting another read set's results.
+
+On a `--skip_assembly` snapshot run no assembler subdirectory is created; the report and
+`versions.yml` stay at the top.
+
 ### Common reference set for a sample series
 
 Per-sample runs give every sample its own MAGs, so two samples of the same environment cannot be
@@ -80,7 +117,7 @@ sample's own assembly. Design and identity rules:
 | flag | default | effect |
 |---|---|---|
 | `--genome_set_id` | off | id of the series' genome set, e.g. `CGS-SITE-A`; turns the reference set on (needs the assembly branch) |
-| `--genome_set` | none | directory of the previous version to extend (`results/genome_set/genome_set/` of the run that built it); without it the run builds v1 |
+| `--genome_set` | none | directory of the previous version to extend (`results/<assembler>/genome_set/genome_set/` of the run that built it); without it the run builds v1 |
 | `--genome_set_ani` | 95 | clustering threshold; a different value is a different set, never a new version |
 
 The first sample builds version 1, and every later sample extends the latest version:
@@ -88,10 +125,10 @@ The first sample builds version 1, and every later sample extends the latest ver
 ```bash
 nextflow run tpall/aftekas --input sample1.csv --genome_set_id CGS-SITE-A ...
 nextflow run tpall/aftekas --input sample2.csv --genome_set_id CGS-SITE-A \
-    --genome_set /path/to/first-run/results/genome_set/genome_set ...
+    --genome_set /path/to/first-run/results/MEGAHIT/genome_set/genome_set ...
 ```
 
-Output under `results/genome_set/`:
+Output under `results/<assembler>/genome_set/` (see [Output layout](#output-layout)):
 
 - `genome_set/representatives/<id>.fa`: one genome per representative, named by its id;
 - `genome_set/members.tsv`: every MAG ever binned in the series and the representative it belongs to;
@@ -124,4 +161,4 @@ nextflow run tpall/aftekas --input my_samples.csv --profile_reads --skip_assembl
     --sylph_db databases/sylph/gtdb-r226-c200-dbv2.syl2db --sylph_tax_dir databases/sylph-tax
 ```
 
-Output under `results/profile/`: `sylph_profile.tsv` (genome level: ANI, effective coverage, taxonomic and sequence abundance per sample), `taxprof/<sample>.sylphmpa` (MetaPhlAn-style lineage profiles), and `sylph_relative_abundance.tsv` / `sylph_sequence_abundance.tsv` (clade x sample matrices). Profiling reads the host/phiX-removed reads, not the BBNorm-normalised ones, because normalisation flattens the coverage the abundances are estimated from.
+Output under `results/profile/` (shared by both assembler arms): `sylph_profile.tsv` (genome level: ANI, effective coverage, taxonomic and sequence abundance per sample), `taxprof/<sample>.sylphmpa` (MetaPhlAn-style lineage profiles), and `sylph_relative_abundance.tsv` / `sylph_sequence_abundance.tsv` (clade x sample matrices). Profiling reads the host/phiX-removed reads, not the BBNorm-normalised ones, because normalisation flattens the coverage the abundances are estimated from.

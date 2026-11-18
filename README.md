@@ -4,11 +4,11 @@ This [Nextflow](https://www.nextflow.io/docs/latest/index.html) workflow was con
 
 1. The main feature is the [**use of array jobs**](https://www.nextflow.io/docs/latest/reference/process.html#array) when executed in slurm cluster.
 2. Many data munging steps are moved into the customised local modules.
-3. The workflow is simple and devoid of forking paths:  
+3. The workflow is simple and has one choice point, the assembler:  
       - uses **only double-ended short reads**,
       - uses **fastp** to trim raw reads,
       - always maps reads to host genome and phix
-      - uses **MEGAHIT** for assembly
+      - assembles with **MEGAHIT** (default) or **metaSPAdes** (`--assembler spades`)
       - uses **MAXBIN2**, **METABAT2**, **VAMB**, **CONCOCT** for binning
       - uses **BINETTE** for bin refinement
       - assigns taxonomy to refined bins using **GTDBTk**.
@@ -65,6 +65,35 @@ nextflow run tpall/aftekas -profile cluster --input my_samples.csv --array_size 
 ```
 
 Above, we have four unique sample ids in my_samples.csv, therefore `--array_size 4`.
+
+### Choosing the assembler
+
+| flag | default | effect |
+|---|---|---|
+| `--assembler` | `megahit` | `megahit` or `spades`; `spades` runs SPAdes with `--meta` and also publishes the assembly graph |
+| `--save_bams` | off | publish the sorted BAM and its `.bai` to `assembly/bam/` |
+
+**MEGAHIT is the default because it is enough for plain MAG recovery and much cheaper.**
+metaSPAdes costs considerably more memory and wall time, and buys one thing MEGAHIT cannot
+give: the assembly graph, published as
+`assembly/graph/metaSPAdes_<id>_assembly_graph.gfa.gz`. Use `--assembler spades` only for
+runs that need it — graph-based recruitment of unbinned accessory and mobile contigs is the
+case it was added for. The graph **cannot be recovered after the run**, so a run that may
+need it has to ask for it up front.
+
+Two consequences of the metaSPAdes path worth knowing before you choose it:
+
+- **The binned sequences are SPAdes *scaffolds*, not `contigs.fasta`.** This is deliberate:
+  the graph's `P` (path) lines name scaffolds, and the two files carry independent `NODE_*`
+  numbering, so binning contigs would leave every contig name unresolvable against the
+  graph.
+- **BBNorm normalisation runs on both paths**, which is what keeps metaSPAdes' memory
+  tractable on a gut metagenome.
+
+`--save_bams` is the same kind of up-front decision. The publish gate is evaluated at
+publish time, so a finished run without it cannot be re-published — only re-run. Each arm
+records what it was given in `pipeline_info/run_manifest.json`, which is how a later
+consumer tells "no BAM was requested" apart from "a BAM was requested and is missing".
 
 ### Output layout
 
